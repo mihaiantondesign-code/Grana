@@ -59,7 +59,19 @@ svg{display:block;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:
 .msg b{font:italic 600 22px var(--serif);color:var(--ink)}
 .msg a,.msg button.pill{color:#1a1405}
 
-.rail{flex:none;padding-top:8px}
+.rail{flex:none;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.rail .chips{flex:1;min-height:0;align-items:flex-start}
+.rail.s0 .chips{align-items:center}
+.handle{height:22px;flex:none;display:grid;place-items:center;touch-action:none;cursor:grab}
+.handle i{display:block;width:40px;height:4px;border-radius:2px;background:#4a4333}
+.rail.s0 .tabrow{display:none}
+.rail.s0 .chip{min-width:0;max-width:none;padding:6px 11px;flex-direction:row;align-items:center;gap:7px;border-radius:99px}
+.rail.s0 .chip i{width:11px;height:11px;border-radius:50%;margin:0}
+.rail.s0 .chip small{display:none}
+.rail.s0 .chip b{font-size:12.5px}
+.rail .chips.wrap{overflow-y:auto;overflow-x:hidden;align-content:flex-start;padding-bottom:14px}
+#ed.ed-min .panel{padding:0;border:0}
+.stage{min-height:120px}
 .tabrow{display:flex;align-items:center;gap:6px;height:34px}
 .tabs{display:flex;gap:2px}
 .tabs button{padding:6px 10px;font:600 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim);border-bottom:2px solid transparent}
@@ -68,11 +80,11 @@ svg{display:block;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:
 .mini input{width:46%;max-width:170px}
 .chips{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x proximity;padding:6px 2px 8px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
-.chip{flex:none;scroll-snap-align:center;min-width:82px;max-width:120px;padding:7px 9px 8px;border-radius:8px;background:var(--panel);
+.chip{flex:none;scroll-snap-align:center;min-width:72px;max-width:112px;padding:6px 8px 6px;border-radius:8px;background:var(--panel);
   border:1px solid var(--line);display:flex;flex-direction:column;gap:3px;text-align:left}
-.chip i{display:block;height:20px;border-radius:4px;margin-bottom:3px}
-.chip b{font:600 12px var(--serif);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.chip small{font:500 9.5px var(--mono);letter-spacing:.1em;color:var(--dim);text-transform:uppercase}
+.chip i{display:block;height:14px;border-radius:3px;margin-bottom:2px}
+.chip b{font:600 11.5px var(--serif);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip small{font:500 9px var(--mono);letter-spacing:.1em;color:var(--dim);text-transform:uppercase}
 .chip.on{border-color:var(--acc);background:#201b12}
 .chip.on small{color:var(--acc)}
 .grid .chips,.chips.wrap{flex-wrap:wrap;overflow:visible}
@@ -204,7 +216,8 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
     <div id="dblBar" hidden><span id="dblTxt"></span><span style="display:flex;gap:6px;background:none;padding:0"><button class="chipbtn" id="dblPick">Dal Rullino</button><button class="chipbtn" id="dblCancel" hidden>Annulla</button></span></div>
     <div class="msg" id="denied" hidden></div>
   </div>
-  <div class="rail">
+  <div class="rail s1" id="rail">
+    <div class="handle" id="railHandle" role="separator" aria-label="Trascina per espandere o ridurre i filtri"><i></i></div>
     <div class="tabrow">
       <div class="tabs" id="railTabs"></div>
       <div class="mini"><span id="miniLbl">Intensità</span><input type="range" id="inten" min="0" max="1" step="0.01" aria-label="Intensità filtro"></div>
@@ -244,6 +257,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
   </div>
   <div class="stage"><canvas id="edView"></canvas><div class="busy" id="edBusy" hidden></div></div>
   <div id="pending" hidden><span id="pendTxt"></span><button class="pill" id="pendBtn">Salva</button></div>
+  <div class="handle" id="edHandle" role="separator" aria-label="Trascina per ridimensionare il pannello"><i></i></div>
   <div class="tabs" id="edTabs">
     <button data-t="look" class="on">Filtro</button><button data-t="adj">Regola</button><button data-t="frame">Cornice</button><button data-t="blend" hidden>Miscela</button>
   </div>
@@ -909,6 +923,23 @@ function fillChips(box,kind,cur,pick,frameList){
   const a=$('.chip.on',box);if(a)requestAnimationFrame(()=>{box.scrollLeft=a.offsetLeft-box.clientWidth/2+a.clientWidth/2})
 }
 function frameListFor(m){return m==='stamp'?FRAME_ORDER.filter(f=>f!=='none'):FRAME_ORDER}
+let railState=1;try{const r=localStorage.getItem('grana.rail');if(r!==null&&/^[012]$/.test(r))railState=+r}catch{}
+function panelDrag(o){
+  let st=o.init,drag=null;
+  const nearest=h=>{const H=o.H();let b=0;for(let i=1;i<3;i++)if(Math.abs(H[i]-h)<Math.abs(H[b]-h))b=i;return b};
+  const apply=(i,anim)=>{const ch=i!==st;st=i;o.el.style.transition=anim?'height .22s ease':'none';o.el.style.height=o.H()[i]+'px';if(ch||!o.ready){o.ready=true;o.onState(i)}try{localStorage.setItem(o.key,i)}catch{}};
+  o.handle.addEventListener('pointerdown',e=>{o.handle.setPointerCapture(e.pointerId);drag={y:e.clientY,h:o.el.getBoundingClientRect().height,H:o.H(),ly:e.clientY,lt:performance.now(),v:0,moved:false};o.el.style.transition='none'});
+  o.handle.addEventListener('pointermove',e=>{if(!drag)return;const dy=drag.y-e.clientY;if(Math.abs(dy)>4)drag.moved=true;
+    const h=Math.max(drag.H[0],Math.min(drag.H[2],drag.h+dy));o.el.style.height=h+'px';
+    const now=performance.now();drag.v=(e.clientY-drag.ly)/Math.max(1,now-drag.lt);drag.ly=e.clientY;drag.lt=now;
+    const n=nearest(h);if(n!==st){st=n;o.onState(n)}});
+  const end=()=>{if(!drag)return;const d=drag;drag=null;
+    if(!d.moved){apply(st===2?1:st+1,true);return}
+    apply(nearest(o.el.getBoundingClientRect().height-d.v*140),true)};
+  ['pointerup','pointercancel'].forEach(n=>o.handle.addEventListener(n,end));
+  window.addEventListener('resize',()=>apply(st,false));
+  o.apply=apply;o.get=()=>st;apply(o.init,false);return o;
+}
 function renderRail(){
   const tabs=$('#railTabs');tabs.innerHTML='';
   const defs=mode==='photo'?[['look','Filtro']]:mode==='double'?[['look','Filtro'],['blend','Miscela']]:[['look','Filtro'],['frame','Cornice']];
@@ -920,6 +951,7 @@ function renderRail(){
   $('.mini').style.visibility=railTab==='frame'?'hidden':'visible';
   $('#miniLbl').textContent=railTab==='blend'?'Mix':'Intensità';
   $('#inten').value=railTab==='blend'?CS.dbl.mix:CS.i;
+  $('#chips').classList.toggle('wrap',railState===2);
 }
 function updateDbl(){const bar=$('#dblBar');bar.hidden=mode!=='double';if(mode!=='double')return;
   $('#dblTxt').textContent=dblA?'2/2 · inquadra la seconda esposizione':'1/2 · scatta la prima esposizione';
@@ -1298,7 +1330,7 @@ $('#bGal').onclick=()=>{if(recording)return;cancelCountdown();renderGallery();sh
 $('#galBack').onclick=()=>{endPick();show('cam')};
 $('#imp').onchange=e=>{importFiles([...e.target.files]);e.target.value=''};
 $('#edBack').onclick=()=>closeEd();
-$$('#edTabs button').forEach(b=>b.onclick=()=>{if(ED){ED.tab=b.dataset.t;renderPanel()}});
+$$('#edTabs button').forEach(b=>b.onclick=()=>{if(ED){ED.tab=b.dataset.t;renderPanel();if(edDrag.get()===0)edDrag.apply(1,true)}});
 $('#edSave').onclick=edSave;
 $('#pendBtn').onclick=()=>{const p=ED?.pendingBlob;if(!p)return;deliver(p.blob,p.name).catch(e=>{if(e.name!=='AbortError'){download(p.blob,p.name)}})};
 $('#edSnd').onclick=()=>{if(!ED)return;ED.muted=!ED.muted;ev.muted=ED.muted;$('#edSnd').innerHTML=ic(ED.muted?'mute':'snd')};
@@ -1307,6 +1339,13 @@ edView.onclick=()=>{if(ED&&ED.item.type==='video'&&!ED.exporting){ev.paused?ev.p
 (async function init(){
   if(!GLR){$('#denied').hidden=false;$('#denied').innerHTML='<b>WebGL non disponibile</b><div>Questo browser non riesce ad applicare i filtri.</div>';return}
   try{ITEMS=(await DB.all()).sort((a,b)=>b.created-a.created)}catch{ITEMS=[]}
+  const railEl=$('#rail');
+  panelDrag({el:railEl,handle:$('#railHandle'),key:'grana.rail',init:railState,
+    H:()=>[78,136,Math.max(230,Math.min(Math.round(innerHeight*.5),innerHeight-340))],
+    onState:i=>{railState=i;railEl.className='rail s'+i;renderRail()}});
+  window.edDrag=panelDrag({el:$('#edPanel'),handle:$('#edHandle'),key:'grana.edpanel',init:1,
+    H:()=>[0,Math.max(240,Math.min(Math.round(innerHeight*.42),460)),Math.max(300,Math.min(Math.round(innerHeight*.64),innerHeight-300))],
+    onState:i=>{$('#ed').classList.toggle('ed-min',i===0)}});
   setGalThumb();paintTimer();paintDate();paintGrid();paintRoll();setMode('photo');
   startCam();raf=requestAnimationFrame(camLoop);
   setInterval(()=>{if(screenName==='gal')renderGallery();setGalThumb()},15000);
