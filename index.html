@@ -59,16 +59,8 @@ svg{display:block;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:
 .msg b{font:italic 600 22px var(--serif);color:var(--ink)}
 .msg a,.msg button.pill{color:#1a1405}
 
-.rail{flex:none;display:flex;flex-direction:column;overflow:hidden;min-height:0}
-.rail .chips{flex:1;min-height:0;align-items:flex-start}
-.rail.s0 .chips{align-items:center}
 .handle{height:22px;flex:none;display:grid;place-items:center;touch-action:none;cursor:grab}
 .handle i{display:block;width:40px;height:4px;border-radius:2px;background:#4a4333}
-.rail.s0 .tabrow{display:none}
-.rail.s0 .chip{min-width:0;max-width:none;padding:6px 11px;flex-direction:row;align-items:center;gap:7px;border-radius:99px}
-.rail.s0 .chip i{width:11px;height:11px;border-radius:50%;margin:0}
-.rail.s0 .chip small{display:none}
-.rail.s0 .chip b{font-size:12.5px}
 .chips{touch-action:pan-x;overscroll-behavior:contain}
 .chips.hgrid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(var(--rows,2),min-content);grid-auto-columns:max-content;gap:8px;align-content:start;overflow-x:auto;overflow-y:hidden;padding:6px 2px 8px}
 .chips.hgrid .chip{width:104px;min-width:0;max-width:none}
@@ -175,9 +167,44 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 #dblBar{position:absolute;left:10px;right:10px;top:10px;display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 #dblBar span{padding:5px 11px;border-radius:99px;background:rgba(0,0,0,.6);font:600 11px var(--mono);letter-spacing:.06em}
 #bRoll{width:auto;min-width:60px;padding:0 10px;border-radius:99px;font:600 12px var(--mono);letter-spacing:.04em;color:var(--dim)}
+#cam .bar #bRoll{min-width:76px;height:48px;font-size:14px;padding:0 14px}
 #bRoll.on{color:var(--acc)}
 @supports (-webkit-touch-callout:none){.screen{padding-top:max(env(safe-area-inset-top),28px)}}
 .bar{margin-top:8px;gap:2px}
+#cam .bar{margin-top:28px;height:64px;gap:6px}
+#cam .bar .ib{width:56px;height:56px}
+#cam .bar .ib svg{width:28px;height:28px}
+#cam .bar .ib .tx{font-size:15px}
+.rail{flex:none;padding-top:6px}
+.car{position:relative;height:84px}
+.chips.carS{height:100%;display:flex;gap:10px;align-items:center;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;padding:0 calc(50% - 26px);
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;touch-action:pan-x;overscroll-behavior:contain;
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 15%,#000 85%,transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 15%,#000 85%,transparent 100%)}
+.chips.carS::-webkit-scrollbar{display:none}
+.chips.carS .it{flex:none;width:52px;height:52px;padding:0;border-radius:12px;overflow:hidden;scroll-snap-align:center;opacity:.72;border:2px solid transparent;
+  transition:transform .16s,opacity .16s,border-color .16s;background:#222}
+.chips.carS .it canvas{display:block;width:100%;height:100%}
+.chips.carS .it.on{transform:scale(1.28);opacity:1;border-color:var(--ink)}
+.carFoot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:36px}
+.carLbl{font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink);text-align:center;white-space:nowrap}
+.pickBtn{justify-self:end;display:flex;gap:6px;align-items:center;height:32px;padding:0 12px;border-radius:99px;background:var(--panel);border:1px solid var(--line);font:600 11px var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.pickBtn svg{width:16px;height:16px}
+#picker{z-index:45;background:var(--bg)}
+.pkBody{flex:1;min-height:0;overflow-y:auto;padding:0 0 28px;-webkit-overflow-scrolling:touch}
+.pkCat{font:600 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);padding:18px 2px 8px}
+.pkGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.pkTile{display:flex;flex-direction:column;gap:6px;padding:8px 6px 9px;border-radius:12px;background:var(--panel);border:1.5px solid var(--line);text-align:center;min-width:0}
+.pkTile canvas{width:100%;height:104px;object-fit:contain;display:block}
+.pkTile i{display:block;height:104px;border-radius:8px}
+.pkTile b{font:600 12px var(--serif);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pkTile small{font:500 9px var(--mono);color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
+.pkTile.on{border-color:var(--acc);background:#201b12}
+.pkTile.on small{color:var(--acc)}
+.frameCur{display:flex;gap:14px;align-items:center;padding:10px 0}
+.frameCur canvas{width:96px;height:96px;object-fit:contain;background:#000;border-radius:10px;flex:none}
+.frameCur .fi{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.frameCur .fi b{font:600 15px var(--serif)}
+.frameCur .fi small{font:500 10px var(--mono);color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
 .catlbl{flex:none;align-self:center;writing-mode:vertical-rl;transform:rotate(180deg);font:600 9px var(--mono);letter-spacing:.14em;color:var(--dim);text-transform:uppercase;padding:0 2px}
 .chips.wrap .catlbl{writing-mode:horizontal-tb;transform:none;flex-basis:100%;padding:10px 2px 2px;align-self:auto}
 #lensBar{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:flex;gap:4px;padding:4px;border-radius:99px;background:rgba(0,0,0,.5)}
@@ -236,13 +263,9 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
     <div id="dblBar" hidden><span id="dblTxt"></span><span style="display:flex;gap:6px;background:none;padding:0"><button class="chipbtn" id="dblPick">Dal Rullino</button><button class="chipbtn" id="dblCancel" hidden>Annulla</button></span></div>
     <div class="msg" id="denied" hidden></div>
   </div>
-  <div class="rail s1" id="rail">
-    <div class="handle" id="railHandle" role="separator" aria-label="Trascina per espandere o ridurre i filtri"><i></i></div>
-    <div class="tabrow">
-      <div class="tabs" id="railTabs"></div>
-      <div class="mini"><span id="miniLbl">Intensità</span><output id="miniVal"></output><input type="range" id="inten" min="0" max="1" step="0.01" aria-label="Intensità filtro"></div>
-    </div>
-    <div class="chips" id="chips"></div>
+  <div class="rail" id="rail">
+    <div class="car"><div class="chips" id="chips" aria-label="Filtri"></div></div>
+    <div class="carFoot"><span></span><div class="carLbl" id="carLbl"></div><button class="pickBtn" id="bPick" aria-label="Scegli cornice" hidden><span id="pickIc"></span><span id="pickTx">Cornice</span></button></div>
   </div>
   <div class="modes" id="modes">
     <button data-m="photo">FOTO</button><button data-m="stamp">STAMP</button><button data-m="double">DOPPIA</button><button data-m="video">VIDEO</button>
@@ -302,6 +325,10 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
   <p class="note">Solo per i 48 MP: usa l’app Fotocamera di iOS (senza filtro in anteprima) e la foto arriva qui per filtri e cornici. In Impostazioni › Fotocamera › Formati attiva HEIF Max.</p>
   <p class="note">Gesti: pizzica per lo zoom, tieni premuto lo scatto per la raffica. Video massimo 20 secondi.</p>
 </div></div>
+<section id="picker" class="screen" hidden>
+  <div class="bar"><button class="ib" id="pkClose" aria-label="Chiudi"><span class="tx" style="font-size:26px">×</span></button><div class="ttl" id="pkTitle">Cornici</div><span class="sp"></span></div>
+  <div class="pkBody" id="pkBody"></div>
+</section>
 <div id="txtSheet" hidden>
   <div class="tsBar"><textarea id="txtIn" rows="2" maxlength="140" placeholder="Scrivi…" enterkeyhint="done" aria-label="Testo"></textarea><button class="pill" id="txtDone">Fatto</button></div>
   <div class="tsRow" id="txtFonts"></div>
@@ -329,6 +356,7 @@ const IC={
   play:'<path d="M7 4l13 8-13 8z"/>',
   pause:'<path d="M7 4h3.5v16H7zM13.5 4H17v16h-3.5z"/>',
   trash:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+  frame:'<rect x="3.5" y="3.5" width="17" height="17" rx="2"/><rect x="8" y="8" width="8" height="8" rx="1"/>',
   info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.1"/>'
 };
 const ic=(n)=>`<svg viewBox="0 0 24 24" width="22" height="22">${IC[n]}</svg>`;
@@ -812,14 +840,14 @@ const DB=(()=>{
 
 /* ---------------- State ---------------- */
 const view=$('#view'),vid=$('#vid'),ev=$('#ev'),edView=$('#edView');
-let ITEMS=[],mode='photo',railTab='look',facing='environment',stream=null,audioStream=null,torchOn=false,torchOK=false;
+let ITEMS=[],mode='photo',facing='environment',stream=null,audioStream=null,torchOn=false,torchOK=false;
 let screenName='cam',raf=0,timerSec=0,cdT=0,recorder=null,recT0=0,recTick=0,recChunks=[],recording=false,wake=null;
 const FR={photo:'none',stamp:'stamp',double:'none',video:'none'};
 let Z=1,zHW=false,zMin=1,zMax=4,zT=0,dblA=null,galPick=null,gridMode=0,shooting=false,ovKey='';
 let lensId=null,lenses=[],capturing=false,camClass='photo';
 const newSettings=(preset='pastel')=>({preset,i:1,s:{...PBY[preset].s},frame:'none',date:false,dateStr:'',seed:Math.random()*100,leakAng:Math.random()*6.28,dbl:{mode:0,mix:.8,flip:0}});
 let CS=newSettings();
-try{const sv=JSON.parse(localStorage.getItem('grana.cs')||'null');if(sv&&PBY[sv.preset]){CS=Object.assign(newSettings(sv.preset),{i:sv.i??1,s:{...PBY[sv.preset].s,...sv.s},date:!!sv.date,dbl:{mode:0,mix:.8,flip:0,...(sv.dbl||{}),flip:0}});timerSec=sv.timer||0}}catch{}
+try{const sv=JSON.parse(localStorage.getItem('grana.cs')||'null');if(sv&&PBY[sv.preset]){CS=Object.assign(newSettings(sv.preset),{i:1,s:{...PBY[sv.preset].s,...sv.s},date:!!sv.date,dbl:{mode:0,mix:.8,flip:0,...(sv.dbl||{}),flip:0}});timerSec=sv.timer||0}}catch{}
 const saveCS=()=>{try{localStorage.setItem('grana.cs',JSON.stringify({preset:CS.preset,i:CS.i,s:CS.s,date:CS.date,timer:timerSec,dbl:{mode:CS.dbl.mode,mix:CS.dbl.mix}}))}catch{}};
 const dateNow=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return`'${p(d.getFullYear()%100)} ${p(d.getMonth()+1)} ${p(d.getDate())}`};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -934,6 +962,7 @@ function camLoop(now){
   if(mode==='double'&&dblA){o.src2=dblA.c;o.w2=dblA.w;o.h2=dblA.h}
   renderTo(view,vid,vid.videoWidth,vid.videoHeight,CS,now/1000,960,facing==='user',o);
   fitOverlay();
+  if(CAR&&now-thumbT>2500){thumbT=now;const sq=camSquare(104);if(sq)CAR.thumbs(sq)}
 }
 function fitOverlay(){const ov=$('#ovl');if(ov.hidden)return;const st=view.parentElement,sw=st.clientWidth,sh=st.clientHeight,ar=view.width/view.height;
   const k=sw+'x'+sh+'x'+view.width+'x'+view.height;if(k===ovKey)return;ovKey=k;let w,h;if(sw/sh>ar){h=sh;w=sh*ar}else{w=sw;h=sw/ar}
@@ -966,7 +995,6 @@ function fillChips(box,kind,cur,pick,frameList){
   const a=$('.chip.on',box);if(a)requestAnimationFrame(()=>{box.scrollLeft=a.offsetLeft-box.clientWidth/2+a.clientWidth/2})
 }
 function frameListFor(m){return m==='stamp'?FRAME_ORDER.filter(f=>f!=='none'):FRAME_ORDER}
-let railState=1;try{const r=localStorage.getItem('grana.rail');if(r!==null&&/^[012]$/.test(r))railState=+r}catch{}
 function panelDrag(o){
   let st=o.init,drag=null;
   const nearest=h=>{const H=o.H();let b=0;for(let i=1;i<3;i++)if(Math.abs(H[i]-h)<Math.abs(H[b]-h))b=i;return b};
@@ -983,19 +1011,63 @@ function panelDrag(o){
   window.addEventListener('resize',()=>apply(st,false));
   o.apply=apply;o.get=()=>st;apply(o.init,false);return o;
 }
+/* ---------------- Carosello filtri ---------------- */
+let CAR=null,thumbT=0;
+const CAR_PITCH=62;
+function makeCarousel(box,onPick,lbl){
+  box.innerHTML='';box.className='chips carS';
+  let idx=-1,tgt=null,tick=0,tgtT=0;const cvs=[];
+  PRESETS.forEach((P,i)=>{const b=document.createElement('button');b.type='button';b.className='it';b.setAttribute('aria-label',P.name);
+    b.style.background=`linear-gradient(135deg,${P.sw[0]},${P.sw[1]})`;
+    const cv=document.createElement('canvas');cv.width=cv.height=104;b.appendChild(cv);cvs.push(cv);b.onclick=()=>pick(i,false);box.appendChild(b)});
+  const paint=i=>{idx=i;[...box.children].forEach((b,k)=>b.classList.toggle('on',k===i));if(lbl)lbl.textContent=PRESETS[i].name+' · '+PRESETS[i].iso};
+  const go=(i,smooth)=>{tgt=i;clearTimeout(tgtT);tgtT=setTimeout(()=>{tgt=null},smooth?1000:150);box.scrollTo({left:i*CAR_PITCH,behavior:smooth?'smooth':'auto'})};
+  const pick=(i,fromScroll)=>{if(fromScroll&&i===idx)return;paint(i);onPick(PRESETS[i]);if(!fromScroll)go(i,true)};
+  const free=()=>{tgt=null};
+  box.addEventListener('touchstart',free,{passive:true});box.addEventListener('pointerdown',free,{passive:true});box.addEventListener('wheel',free,{passive:true});
+  box.addEventListener('scroll',()=>{
+    if(tgt!==null){if(Math.abs(box.scrollLeft-tgt*CAR_PITCH)<3)tgt=null;return}
+    const i=Math.max(0,Math.min(PRESETS.length-1,Math.round(box.scrollLeft/CAR_PITCH)));if(i!==idx)pick(i,true)},{passive:true});
+  return{set(i,instant){paint(i);go(i,!instant)},
+    thumbs(src){if(!GLR)return;PRESETS.forEach((P,k)=>{const st={preset:P.id,i:1,s:P.s,seed:7,leakAng:2.2,dbl:{mode:0,mix:.8,flip:0}};
+      if(GLR.draw(src,src.width,src.height,st,0,false,{})===false)return;cvs[k].getContext('2d').drawImage(GLR.canvas,0,0,104,104)})},
+    get idx(){return idx}};
+}
+function squareSrc(el,sw,sh,size,mirror){const c=document.createElement('canvas');c.width=c.height=size;const x=c.getContext('2d'),m=Math.min(sw,sh);
+  if(mirror){x.translate(size,0);x.scale(-1,1)}x.drawImage(el,(sw-m)/2,(sh-m)/2,m,m,0,0,size,size);return c}
+function lookCanvas(src,st){const out=document.createElement('canvas');out.width=src.width;out.height=src.height;const x=out.getContext('2d');
+  if(GLR&&GLR.draw(src,src.width,src.height,{...st,frame:'none',texts:[]},0,false,{})!==false)x.drawImage(GLR.canvas,0,0);else x.drawImage(src,0,0);return out}
+function camSquare(size){if(!vid.videoWidth)return null;return squareSrc(vid,vid.videoWidth,vid.videoHeight,size,facing==='user')}
 function renderRail(){
-  const tabs=$('#railTabs');tabs.innerHTML='';
-  const defs=mode==='photo'?[['look','Filtro']]:mode==='double'?[['look','Filtro'],['blend','Miscela']]:[['look','Filtro'],['frame','Cornice']];
-  if(!defs.some(d=>d[0]===railTab))railTab='look';
-  defs.forEach(([k,l])=>{const b=document.createElement('button');b.textContent=l;b.className=k===railTab?'on':'';b.onclick=()=>{railTab=k;renderRail()};tabs.appendChild(b)});
-  const cur=railTab==='look'?CS.preset:railTab==='blend'?CS.dbl.mode:FR[mode];
-  fillChips($('#chips'),railTab,cur,id=>{
-    if(railTab==='look'){CS.preset=id;CS.s={...PBY[id].s}}else if(railTab==='blend')CS.dbl.mode=id;else FR[mode]=id;saveCS()},frameListFor(mode));
-  $('.mini').style.visibility=railTab==='frame'?'hidden':'visible';
-  $('#miniLbl').textContent=railTab==='blend'?'Mix':'Intensità';
-  $('#inten').value=railTab==='blend'?CS.dbl.mix:CS.i;$('#miniVal').textContent=Math.round($('#inten').value*100);
-  const cb=$('#chips');cb.classList.toggle('hgrid',railState===2);
-  if(railState===2&&window.railDrag)cb.style.setProperty('--rows',Math.max(2,Math.floor((railDrag.H()[2]-22-34-20)/66)));
+  if(!CAR)CAR=makeCarousel($('#chips'),P=>{CS.preset=P.id;CS.s={...P.s};saveCS()},$('#carLbl'));
+  CAR.set(Math.max(0,PRESETS.findIndex(p=>p.id===CS.preset)),true);
+  const pb=$('#bPick'),on=mode!=='photo';pb.hidden=!on;
+  if(on){$('#pickTx').textContent=mode==='double'?'Miscela':'Cornice';$('#pickIc').innerHTML=ic('frame')}
+}
+/* ---------------- Selettore a tutta pagina (cornici, miscele) ---------------- */
+function closePicker(){$('#picker').hidden=true;$('#pkBody').innerHTML=''}
+$('#pkClose').onclick=closePicker;
+function openFramePicker(o){
+  const body=$('#pkBody');body.innerHTML='';$('#pkTitle').textContent='Cornici';
+  let src=o.src;if(!src){src=document.createElement('canvas');src.width=src.height=200;const x=src.getContext('2d'),g=x.createLinearGradient(0,0,200,200);g.addColorStop(0,'#3a7bd5');g.addColorStop(1,'#d4506a');x.fillStyle=g;x.fillRect(0,0,200,200)}
+  const filtered=lookCanvas(src,o.st);let grid=null,last='\0',curTile=null;
+  o.list.forEach(id=>{const F=FRAMES[id];
+    if(!grid||(F.cat||'')!==last){last=F.cat||'';if(F.cat){const h=document.createElement('div');h.className='pkCat';h.textContent=F.cat;body.appendChild(h)}grid=document.createElement('div');grid.className='pkGrid';body.appendChild(grid)}
+    const t=document.createElement('button');t.type='button';t.className='pkTile'+(id===o.cur?' on':'');
+    const cv=document.createElement('canvas');try{compose(cv,filtered,id,{n:1,seed:1,ts:Date.now()})}catch{}
+    t.appendChild(cv);const nm=document.createElement('b');nm.textContent=F.name;const sm=document.createElement('small');sm.textContent=F.iso;t.append(nm,sm);
+    t.onclick=()=>{o.onPick(id);closePicker()};grid.appendChild(t);if(id===o.cur)curTile=t});
+  $('#picker').hidden=false;
+  if(curTile)requestAnimationFrame(()=>{body.scrollTop=Math.max(0,curTile.offsetTop-body.clientHeight/2+curTile.offsetHeight/2)});
+}
+function openBlendPicker(){
+  const body=$('#pkBody');body.innerHTML='';$('#pkTitle').textContent='Miscela';
+  body.appendChild(sliderRow('Mix seconda esposizione',0,1,.01,CS.dbl.mix,v=>{CS.dbl.mix=v;saveCS()}));
+  const grid=document.createElement('div');grid.className='pkGrid';grid.style.marginTop='12px';body.appendChild(grid);
+  BLENDS.forEach(d=>{const t=document.createElement('button');t.type='button';t.className='pkTile'+(d.id===CS.dbl.mode?' on':'');
+    const i=document.createElement('i');i.style.background=`linear-gradient(135deg,${d.sw[0]},${d.sw[1]})`;const nm=document.createElement('b');nm.textContent=d.name;const sm=document.createElement('small');sm.textContent=d.iso;t.append(i,nm,sm);
+    t.onclick=()=>{CS.dbl.mode=d.id;saveCS();$$('.pkTile',grid).forEach(x=>x.classList.toggle('on',x===t))};grid.appendChild(t)});
+  $('#picker').hidden=false;
 }
 function updateDbl(){const bar=$('#dblBar');bar.hidden=mode!=='double';if(mode!=='double')return;
   $('#dblTxt').textContent=dblA?'2/2 · inquadra la seconda esposizione':'1/2 · scatta la prima esposizione';
@@ -1004,7 +1076,7 @@ function setMode(m){
   if(recording)return;
   mode=m;$$('#modes button').forEach(b=>b.classList.toggle('on',b.dataset.m===m));
   const sh=$('#shut');sh.classList.toggle('video',m==='video');sh.classList.remove('rec');
-  railTab=m==='double'?'blend':'look';if(m!=='double')dblA=null;renderRail();updateDbl();
+  if(m!=='double')dblA=null;renderRail();updateDbl();
   if(m==='video')prepAudio();else dropAudio();
   if(camClassOf(m)!==camClass&&screenName==='cam')startCam();
 }
@@ -1208,13 +1280,18 @@ async function persistEd(){if(!ED)return;try{await DB.put(ED.item)}catch{}}
 function edGridBox(p){const box=document.createElement('div');box.className='chips hgrid';p.appendChild(box);
   const H=window.edDrag?edDrag.H()[edDrag.get()]:320,off={look:78,blend:132,frame:94}[ED.tab]||80;
   box.style.setProperty('--rows',Math.max(1,Math.floor((H-off-16)/66)));return box}
+function edSquare(size){if(!ED)return null;const it=ED.item;
+  if(it.type==='video')return ev.videoWidth?squareSrc(ev,ev.videoWidth,ev.videoHeight,size,it.mirror):null;
+  return ED.bmp?squareSrc(ED.bmp,ED.w,ED.h,size,it.mirror):null}
 function renderPanel(){
   const p=$('#edPanel'),st=ED.item.settings;p.innerHTML='';p.scrollTop=0;p.classList.toggle('noscroll',ED.tab!=='adj');
   $$('#edTabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===ED.tab));
   if(ED.tab==='look'){
     p.appendChild(sliderRow('Intensità',0,1,.01,st.i,v=>{st.i=v;edChange()}));
-    const box=edGridBox(p);
-    fillChips(box,'look',st.preset,id=>{st.preset=id;st.s={...PBY[id].s};edChange()});
+    const car=document.createElement('div');car.className='car';const box=document.createElement('div');box.id='edChips';car.appendChild(box);
+    const lbl=document.createElement('div');lbl.className='carLbl';lbl.style.padding='0 0 8px';p.append(car,lbl);
+    const cr=makeCarousel(box,P=>{st.preset=P.id;st.s={...P.s};edChange()},lbl);ED.car=cr;
+    requestAnimationFrame(()=>{if(ED&&ED.car===cr){cr.set(Math.max(0,PRESETS.findIndex(x=>x.id===st.preset)),true);const sq=edSquare(104);if(sq)cr.thumbs(sq)}});
   }else if(ED.tab==='adj'){
     p.appendChild(sliderRow('Intensità',0,1,.01,st.i,v=>{st.i=v;edChange()}));
     SL.forEach(d=>p.appendChild(sliderRow(d.label,d.min,d.max,d.step,st.s[d.k],v=>{st.s[d.k]=v;edChange()},d.k==='contrast'||d.k==='sat'?v=>v.toFixed(2):d.k==='warmth'?v=>(v>0?'+':'')+Math.round(v*100):undefined)));
@@ -1230,8 +1307,11 @@ function renderPanel(){
     fillChips(box,'blend',st.dbl.mode,id=>{st.dbl.mode=id;edChange()});
     p.appendChild(swRow('Specchia la prima esposizione',!!st.dbl.flip,v=>{st.dbl.flip=v?1:0;edChange()}));
   }else{
-    const box=edGridBox(p);
-    fillChips(box,'frame',st.frame,id=>{st.frame=id;edChange()});
+    const F0=FRAMES[st.frame]||FRAMES.none,row=document.createElement('div');row.className='frameCur';
+    const pv=document.createElement('canvas');const fi=document.createElement('div');fi.className='fi';fi.innerHTML='<b></b><small></small>';fi.firstChild.textContent=F0.name;fi.lastChild.textContent=F0.iso;
+    const bt=document.createElement('button');bt.className='pill';bt.textContent='Cambia';row.append(pv,fi,bt);p.appendChild(row);
+    const sq=edSquare(200);if(sq){try{compose(pv,lookCanvas(sq,st),st.frame||'none',{n:ED.item.n,seed:st.seed,ts:ED.item.created})}catch{}}
+    bt.onclick=()=>openFramePicker({cur:st.frame||'none',list:FRAME_ORDER,src:edSquare(200),st,onPick:id=>{st.frame=id;edChange();if(ED)renderPanel()}});
     p.appendChild(swRow('Data impressa arancione',st.date,v=>{st.date=v;edChange()}));
     if(ED.item.type==='photo'&&(FRAMES[st.frame]||{}).alpha){const n=document.createElement('div');n.style.cssText='color:var(--dim);font-size:12px;line-height:1.5;padding-top:4px';n.textContent='Le cornici si salvano in PNG con sfondo trasparente.';p.appendChild(n)}
   }
@@ -1358,7 +1438,7 @@ function edLoop(now){
   else if(ED.need&&ED.bmp){ED.need=false;renderTo(edView,ED.bmp,ED.w,ED.h,it.settings,0,1280,it.mirror,o);drawSel()}
 }
 async function closeEd(skipThumb){
-  if(!ED)return;closeTextSheet();let tc=null;if(!skipThumb&&ED.dirty){try{tc=edThumbCanvas()}catch{}}
+  if(!ED)return;closeTextSheet();closePicker();let tc=null;if(!skipThumb&&ED.dirty){try{tc=edThumbCanvas()}catch{}}
   const e=ED;ED=null;cancelAnimationFrame(e.raf);clearTimeout(e.saveT);
   ev.pause();ev.removeAttribute('src');ev.load();if(e.url)URL.revokeObjectURL(e.url);
   if(!skipThumb&&e.dirty){try{e.item.thumb=await makeThumb(tc||edView);e.item.thumbV=(e.item.thumbV||0)+1;await DB.put(e.item)}catch{}}
@@ -1425,7 +1505,9 @@ $('#bTimer').onclick=()=>{timerSec=timerSec===0?3:timerSec===3?10:0;paintTimer()
 $('#bDate').onclick=()=>{CS.date=!CS.date;paintDate();saveCS()};
 $('#bTorch').onclick=async()=>{if(!stream)return;torchOn=!torchOn;try{await stream.getVideoTracks()[0].applyConstraints({advanced:[{torch:torchOn}]});$('#bTorch').classList.toggle('on',torchOn)}catch{torchOn=false}};
 $('#bFlip').onclick=()=>{if(recording)return;facing=facing==='user'?'environment':'user';lensId=null;startCam()};
-$('#inten').oninput=e=>{const v=+e.target.value;$('#miniVal').textContent=Math.round(v*100);if(railTab==='blend')CS.dbl.mix=v;else CS.i=v;saveCS()};
+$('#bPick').onclick=()=>{
+  if(mode==='double'){openBlendPicker();return}
+  openFramePicker({cur:FR[mode],list:frameListFor(mode),src:camSquare(200),st:CS,onPick:id=>{FR[mode]=id}})};
 $$('#modes button').forEach(b=>b.onclick=()=>setMode(b.dataset.m));
 {const sh=$('#shut');let holdT=0,burstI=0,did=false,n=0;
   const stopB=()=>{clearTimeout(holdT);clearInterval(burstI);burstI=0};
@@ -1486,11 +1568,6 @@ ev.addEventListener('play',()=>{$('#edPlay').innerHTML=ic('pause')});ev.addEvent
 (async function init(){
   if(!GLR){$('#denied').hidden=false;$('#denied').innerHTML='<b>WebGL non disponibile</b><div>Questo browser non riesce ad applicare i filtri.</div>';return}
   try{ITEMS=(await DB.all()).sort((a,b)=>b.created-a.created)}catch{ITEMS=[]}
-  const railEl=$('#rail');
-  window.railDrag=panelDrag({el:railEl,handle:$('#railHandle'),key:'grana.rail',init:railState,
-    H:()=>[78,136,Math.max(230,Math.min(Math.round(innerHeight*.5),innerHeight-340))],
-    onState:i=>{railState=i;railEl.className='rail s'+i;renderRail()}});
-  renderRail();
   window.edDrag=panelDrag({el:$('#edPanel'),handle:$('#edHandle'),key:'grana.edpanel',init:1,
     H:()=>[0,Math.max(240,Math.min(Math.round(innerHeight*.42),460)),Math.max(300,Math.min(Math.round(innerHeight*.64),innerHeight-300))],
     onState:i=>{$('#ed').classList.toggle('ed-min',i===0);if(typeof ED!=='undefined'&&ED)renderPanel()}});
