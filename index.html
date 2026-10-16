@@ -77,10 +77,11 @@ svg{display:block;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:
 .tabs button{padding:6px 10px;font:600 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim);border-bottom:2px solid transparent}
 .tabs button.on{color:var(--ink);border-color:var(--acc)}
 .mini{flex:1;min-width:0;display:flex;align-items:center;gap:8px;justify-content:flex-end;font:600 10px var(--mono);color:var(--dim);letter-spacing:.08em}
+.mini output{min-width:3ch;text-align:right;color:var(--ink)}
 .mini input{width:46%;max-width:170px}
-.chips{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x proximity;padding:6px 2px 8px;scrollbar-width:none}
+.chips{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:6px 2px 8px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
-.chip{flex:none;scroll-snap-align:center;min-width:72px;max-width:112px;padding:6px 8px 6px;border-radius:8px;background:var(--panel);
+.chip{flex:none;min-width:72px;max-width:112px;padding:6px 8px 6px;border-radius:8px;background:var(--panel);
   border:1px solid var(--line);display:flex;flex-direction:column;gap:3px;text-align:left}
 .chip i{display:block;height:14px;border-radius:3px;margin-bottom:2px}
 .chip b{font:600 11.5px var(--serif);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -220,7 +221,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
     <div class="handle" id="railHandle" role="separator" aria-label="Trascina per espandere o ridurre i filtri"><i></i></div>
     <div class="tabrow">
       <div class="tabs" id="railTabs"></div>
-      <div class="mini"><span id="miniLbl">Intensità</span><input type="range" id="inten" min="0" max="1" step="0.01" aria-label="Intensità filtro"></div>
+      <div class="mini"><span id="miniLbl">Intensità</span><output id="miniVal"></output><input type="range" id="inten" min="0" max="1" step="0.01" aria-label="Intensità filtro"></div>
     </div>
     <div class="chips" id="chips"></div>
   </div>
@@ -713,11 +714,13 @@ void main(){
   c=mix(orig,c,inten);
   gl_FragColor=vec4(clamp(c,0.,1.),1.);
 }`;
-const GLR=(()=>{
+function makeGL(){
   try{
     const cv=document.createElement('canvas');
     const gl=cv.getContext('webgl',{preserveDrawingBuffer:true,antialias:false,alpha:false});
     if(!gl)return null;
+    cv.addEventListener('webglcontextlost',e=>{e.preventDefault();setTimeout(()=>{if(GLR&&GLR.canvas===cv&&gl.isContextLost()){const n=makeGL();if(n)GLR=n}},1200)});
+    cv.addEventListener('webglcontextrestored',()=>{if(GLR&&GLR.canvas===cv){const n=makeGL();if(n)GLR=n}});
     const sh=(t,s)=>{const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(o));return o};
     const pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,VS));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,FS));gl.linkProgram(pr);
     if(!gl.getProgramParameter(pr,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(pr));
@@ -735,6 +738,7 @@ const GLR=(()=>{
     const loc={};const L=n=>loc[n]||(loc[n]=gl.getUniformLocation(pr,n));
     const U=(n,v)=>{const l=L(n);if(Array.isArray(v))v.length===3?gl.uniform3fv(l,v):gl.uniform2fv(l,v);else gl.uniform1f(l,v)};
     return{canvas:cv,maxTex:Math.min(6144,gl.getParameter(gl.MAX_TEXTURE_SIZE)),draw(src,w,h,st,t,mirror,o={}){
+      if(gl.isContextLost())return false;
       if(cv.width!==w)cv.width=w;if(cv.height!==h)cv.height=h;gl.viewport(0,0,w,h);
       gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,tx);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,src);
       const d=st.dbl||{mode:0,mix:.8,flip:0};let sc=[1,1];
@@ -746,14 +750,15 @@ const GLR=(()=>{
       U('warmth',s.warmth);U('contrast',s.contrast);U('sat',s.sat);U('fade',s.fade);U('grain',s.grain);U('vig',s.vig);U('glow',s.glow);U('leak',s.leak);U('dust',s.dust);
       for(const k of ['mono','ca','scan','flick','weave','flash','soft'])U(k,x[k]);
       for(const k of ['lift','gain','tint'])U(k,x[k]);
-      gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+      gl.drawArrays(gl.TRIANGLE_STRIP,0,4);return true;
     }};
   }catch(e){console.error(e);return null}
-})();
+}
+let GLR=makeGL();
 function renderTo(out,src,sw,sh,st,t,maxSide,mirror,o={}){
   let sc=Math.min(1,maxSide/Math.max(sw,sh));if(o.maxPx)sc=Math.min(sc,Math.sqrt(o.maxPx/(sw*sh)));
   const w=Math.max(2,Math.round(sw*sc)),h=Math.max(2,Math.round(sh*sc));
-  GLR.draw(src,w,h,st,t,mirror,o);
+  if(GLR.draw(src,w,h,st,t,mirror,o)===false)return;
   compose(out,GLR.canvas,st.frame||'none',o);
 }
 
@@ -914,12 +919,19 @@ function chipEl(def,on){
   const b=document.createElement('button');b.className='chip'+(on?' on':'');b.dataset.id=def.id;
   b.innerHTML=`<i style="background:linear-gradient(135deg,${def.sw[0]},${def.sw[1]})"></i><b>${def.name}</b><small>${def.iso}</small>`;return b;
 }
+function keepVisible(box,b){if(box.classList.contains('wrap'))return;const r=box.getBoundingClientRect(),c=b.getBoundingClientRect();
+  if(c.left<r.left+8)box.scrollLeft-=r.left+8-c.left;else if(c.right>r.right-8)box.scrollLeft+=c.right-r.right+8}
 function fillChips(box,kind,cur,pick,frameList){
   box.innerHTML='';
   const list=kind==='look'?PRESETS:kind==='blend'?BLENDS:(frameList||FRAME_ORDER).map(id=>({id,...FRAMES[id]}));
   let lastCat='';
   list.forEach(d=>{if(kind==='frame'&&d.cat&&d.cat!==lastCat){lastCat=d.cat;const l=document.createElement('span');l.className='catlbl';l.textContent=d.cat;box.appendChild(l)}
-    const b=chipEl(d,d.id===cur);b.onclick=()=>{pick(d.id);$$('.chip',box).forEach(x=>x.classList.toggle('on',x===b));b.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'})};box.appendChild(b)});
+    const b=chipEl(d,d.id===cur);
+    const choose=()=>{pick(d.id);$$('.chip',box).forEach(x=>x.classList.toggle('on',x===b));keepVisible(box,b)};
+    b.addEventListener('pointerdown',e=>{b._p={x:e.clientX,y:e.clientY,t:performance.now()}});
+    b.addEventListener('pointerup',e=>{const p=b._p;b._p=null;if(p&&Math.hypot(e.clientX-p.x,e.clientY-p.y)<10&&performance.now()-p.t<600){b._done=performance.now();choose()}});
+    b.addEventListener('click',()=>{if(b._done&&performance.now()-b._done<700)return;choose()});
+    box.appendChild(b)});
   const a=$('.chip.on',box);if(a)requestAnimationFrame(()=>{box.scrollLeft=a.offsetLeft-box.clientWidth/2+a.clientWidth/2})
 }
 function frameListFor(m){return m==='stamp'?FRAME_ORDER.filter(f=>f!=='none'):FRAME_ORDER}
@@ -950,7 +962,7 @@ function renderRail(){
     if(railTab==='look'){CS.preset=id;CS.s={...PBY[id].s}}else if(railTab==='blend')CS.dbl.mode=id;else FR[mode]=id;saveCS()},frameListFor(mode));
   $('.mini').style.visibility=railTab==='frame'?'hidden':'visible';
   $('#miniLbl').textContent=railTab==='blend'?'Mix':'Intensità';
-  $('#inten').value=railTab==='blend'?CS.dbl.mix:CS.i;
+  $('#inten').value=railTab==='blend'?CS.dbl.mix:CS.i;$('#miniVal').textContent=Math.round($('#inten').value*100);
   $('#chips').classList.toggle('wrap',railState===2);
 }
 function updateDbl(){const bar=$('#dblBar');bar.hidden=mode!=='double';if(mode!=='double')return;
@@ -1280,7 +1292,7 @@ $('#bTimer').onclick=()=>{timerSec=timerSec===0?3:timerSec===3?10:0;paintTimer()
 $('#bDate').onclick=()=>{CS.date=!CS.date;paintDate();saveCS()};
 $('#bTorch').onclick=async()=>{if(!stream)return;torchOn=!torchOn;try{await stream.getVideoTracks()[0].applyConstraints({advanced:[{torch:torchOn}]});$('#bTorch').classList.toggle('on',torchOn)}catch{torchOn=false}};
 $('#bFlip').onclick=()=>{if(recording)return;facing=facing==='user'?'environment':'user';lensId=null;startCam()};
-$('#inten').oninput=e=>{const v=+e.target.value;if(railTab==='blend')CS.dbl.mix=v;else CS.i=v;saveCS()};
+$('#inten').oninput=e=>{const v=+e.target.value;$('#miniVal').textContent=Math.round(v*100);if(railTab==='blend')CS.dbl.mix=v;else CS.i=v;saveCS()};
 $$('#modes button').forEach(b=>b.onclick=()=>setMode(b.dataset.m));
 {const sh=$('#shut');let holdT=0,burstI=0,did=false,n=0;
   const stopB=()=>{clearTimeout(holdT);clearInterval(burstI);burstI=0};
