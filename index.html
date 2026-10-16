@@ -235,6 +235,25 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 @keyframes devl{0%{filter:brightness(.08) sepia(1) blur(8px)}60%{filter:brightness(.7) sepia(.8) blur(2px)}100%{filter:none}}
 .devmini{width:100%;height:100%;background:radial-gradient(circle at 50% 30%,#4a351a,#150f08)}
 #zoomBadge{bottom:56px!important}
+#gal .galTools{display:flex;gap:8px;flex:none;padding:0 0 10px;overflow-x:auto;scrollbar-width:none;touch-action:pan-x}
+#gal .galTools .imp{flex:none}
+.colPanel{flex:none;display:flex;flex-direction:column;gap:10px;padding:10px 0 4px}
+.colLay{display:flex;gap:8px;overflow-x:auto;align-items:center;scrollbar-width:none;touch-action:pan-x;padding:2px}
+.colLay .lb{flex:none;font:600 9px var(--mono);letter-spacing:.14em;color:var(--dim);text-transform:uppercase;writing-mode:vertical-rl;transform:rotate(180deg)}
+.colLay button.lay{flex:none;width:60px;height:52px;display:grid;place-items:center;border-radius:10px;background:var(--panel);border:1.5px solid var(--line);color:var(--dim)}
+.colLay button.lay.on{border-color:var(--acc);color:var(--acc)}
+.colLay button.lay svg{width:36px;height:32px;fill:currentColor;fill-opacity:.3;stroke:currentColor;stroke-width:1.2}
+.colSel{display:flex;gap:10px;align-items:center;min-height:46px}
+.colSel .hint{color:var(--dim);font-size:13px;line-height:1.4}
+.colSel .sl{flex:1;min-width:0;padding:0}
+.colRow{display:flex;gap:18px;align-items:center}
+.colRow .sl{flex:1;min-width:0;padding:0}
+.sw6{display:flex;gap:10px}
+.sw6 button{width:30px;height:30px;border-radius:50%;border:2px solid var(--bg);outline:1px solid rgba(255,255,255,.28)}
+.sw6 button.on{outline:2px solid var(--acc)}
+#colPend{display:flex;align-items:center;gap:10px;padding:9px 12px;margin-top:8px;border-radius:12px;background:#2b261d;font-size:13px}
+#colPend span{flex:1}
+#colView{touch-action:none}
 #vid,#ev{position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none}
 </style>
 </head>
@@ -283,10 +302,32 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
     <button class="ib" id="galBack" aria-label="Indietro"></button>
     <div class="ttl" id="galTtl">Rullino</div>
     <span class="sp"></span>
-    <button class="imp" id="bSheet" style="margin-right:6px">Provino</button>
+  </div>
+  <div class="galTools" id="galTools">
+    <button class="imp" id="bCollage"><span id="colIc"></span>Collage</button>
+    <button class="imp" id="bSheet">Provino</button>
     <label class="imp" id="impLbl"><span id="impIc"></span>Importa<input type="file" id="imp" accept="image/*,video/*" multiple hidden></label>
   </div>
   <div class="gridwrap"><div class="tiles" id="tiles"></div></div>
+</section>
+
+<!-- COLLAGE -->
+<section id="col" class="screen" hidden>
+  <div class="bar">
+    <button class="ib" id="colBack" aria-label="Indietro"></button>
+    <div class="ttl">Collage</div>
+    <span class="sp"></span>
+    <button class="pill" id="colSave">Salva</button>
+  </div>
+  <div class="stage"><canvas id="colView"></canvas></div>
+  <div id="colPend" hidden><span>Collage salvato nel Rullino</span><button class="pill" id="colShare">Condividi</button></div>
+  <div class="colPanel">
+    <div class="colLay" id="colLay"></div>
+    <div class="colSel" id="colSel"></div>
+    <div class="colRow"><label class="sl"><span>Spazio</span><output id="colGapV"></output><input type="range" id="colGap" min="0" max="0.12" step="0.005"></label>
+      <label class="sl"><span>Angoli</span><output id="colRadV"></output><input type="range" id="colRad" min="0" max="0.5" step="0.01"></label></div>
+    <div class="sw6" id="colBg" aria-label="Colore di sfondo"></div>
+  </div>
 </section>
 
 <!-- EDITOR -->
@@ -357,6 +398,7 @@ const IC={
   pause:'<path d="M7 4h3.5v16H7zM13.5 4H17v16h-3.5z"/>',
   trash:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
   frame:'<rect x="3.5" y="3.5" width="17" height="17" rx="2"/><rect x="8" y="8" width="8" height="8" rx="1"/>',
+  collage:'<rect x="3.5" y="3.5" width="7" height="17" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7.5" rx="1.5"/><rect x="13.5" y="13" width="7" height="7.5" rx="1.5"/>',
   info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.1"/>'
 };
 const ic=(n)=>`<svg viewBox="0 0 24 24" width="22" height="22">${IC[n]}</svg>`;
@@ -919,9 +961,10 @@ let AC;function click(){try{AC=AC||new(window.AudioContext||window.webkitAudioCo
 const iOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 
 /* ---------------- Screens ---------------- */
+let pickReturn='cam';
 function show(name){
   const prev=screenName;screenName=name;
-  for(const id of['cam','gal','ed'])$('#'+id).hidden=id!==name;
+  for(const id of['cam','gal','ed','col'])$('#'+id).hidden=id!==name;
   if(prev==='cam'&&name!=='cam'){cancelAnimationFrame(raf);stopCam()}
   if(name==='cam'){startCam();cancelAnimationFrame(raf);raf=requestAnimationFrame(camLoop)}
 }
@@ -1312,7 +1355,92 @@ async function makeSheet(){
   const item={id:uid(),type:'photo',created:Date.now(),w:W,h:H,mirror:false,sheet:true,imported:true,n:ITEMS.length+1,settings:st,thumb:await makeThumb(c)};
   await saveItem(item,raw);renderGallery();openEd(item.id);
 }
-function endPick(){galPick=null;$('#galTtl').textContent='Rullino';$('#bSheet').hidden=false;$('#impLbl').hidden=false}
+function endPick(){galPick=null;$('#galTtl').textContent='Rullino';$('#galTools').hidden=false}
+
+/* ---------------- Collage ---------------- */
+const COLS=[
+  {id:'2h',n:2,c:2,r:1,ar:.75,t:'orizzontali',lbl:'2 affiancate'},{id:'3h',n:3,c:3,r:1,ar:.75,lbl:'3 affiancate'},{id:'4h',n:4,c:4,r:1,ar:.75,lbl:'4 affiancate'},
+  {id:'2v',n:2,c:1,r:2,ar:4/3,t:'verticali',lbl:'2 impilate'},{id:'3v',n:3,c:1,r:3,ar:4/3,lbl:'3 impilate'},{id:'4v',n:4,c:1,r:4,ar:4/3,lbl:'4 impilate'},
+  {id:'4g',n:4,c:2,r:2,ar:1,t:'griglia',lbl:'4 a griglia'}];
+const COLBG=['#0f0d0b','#fbfaf6','#efe6d2','#f2b632','#c8402f','#1f6f6a'];
+const COL={layout:'3h',bg:COLBG[0],gap:.03,radius:.06,cells:[],sel:-1,rects:[]};
+const colEmpty=()=>({item:null,img:null,z:1,fx:.5,fy:.5});
+function layIcon(L){const W=L.c>L.r?36:L.c<L.r?24:28,H=L.c>L.r?24:L.c<L.r?36:28,g=2.5,cw=(W-(L.c+1)*g)/L.c,ch=(H-(L.r+1)*g)/L.r;let r='';
+  for(let i=0;i<L.n;i++){const c=i%L.c,w=Math.floor(i/L.c);r+=`<rect x="${g+c*(cw+g)}" y="${g+w*(ch+g)}" width="${cw}" height="${ch}" rx="1.5"/>`}
+  return`<svg viewBox="0 0 ${W} ${H}">${r}</svg>`}
+function colLayout(){return COLS.find(l=>l.id===COL.layout)}
+function drawCollage(cv,maxSide,editing){
+  const L=colLayout(),cw=L.ar,ch=1,g=COL.gap*Math.min(cw,ch),W=L.c*cw+(L.c+1)*g,H=L.r*ch+(L.r+1)*g,s=maxSide/Math.max(W,H);
+  cv.width=Math.round(W*s);cv.height=Math.round(H*s);const x=cv.getContext('2d');x.fillStyle=COL.bg;x.fillRect(0,0,cv.width,cv.height);
+  const rad=Math.min(COL.radius*Math.min(cw,ch)*s,cw*s/2,ch*s/2);COL.rects=[];
+  for(let i=0;i<L.n;i++){
+    const col=i%L.c,row=Math.floor(i/L.c),rx=(g+col*(cw+g))*s,ry=(g+row*(ch+g))*s,rw=cw*s,rh=ch*s;COL.rects.push([rx,ry,rw,rh]);
+    const c=COL.cells[i];x.save();rr(x,rx,ry,rw,rh,rad);x.clip();
+    if(c&&c.img){const im=c.img,ar=rw/rh;let sw=im.width,sh=im.width/ar;if(sh>im.height){sh=im.height;sw=im.height*ar}sw/=c.z;sh/=c.z;
+      x.drawImage(im,(im.width-sw)*c.fx,(im.height-sh)*c.fy,sw,sh,rx,ry,rw,rh)}
+    else if(editing){x.fillStyle='rgba(128,120,104,.22)';x.fillRect(rx,ry,rw,rh);x.strokeStyle='rgba(255,255,255,.55)';x.lineWidth=Math.max(2,rw*.012);x.lineCap='round';
+      const m=Math.min(rw,rh)*.12,cx=rx+rw/2,cy=ry+rh/2;x.beginPath();x.moveTo(cx-m,cy);x.lineTo(cx+m,cy);x.moveTo(cx,cy-m);x.lineTo(cx,cy+m);x.stroke()}
+    x.restore();
+    if(editing&&i===COL.sel){x.strokeStyle='#f2b632';x.lineWidth=Math.max(3,rw*.014);rr(x,rx,ry,rw,rh,rad);x.stroke()}
+  }
+}
+function colRedraw(){drawCollage($('#colView'),1100,true)}
+function paintCol(){
+  const lay=$('#colLay');lay.innerHTML='';
+  COLS.forEach(L=>{if(L.t){const l=document.createElement('span');l.className='lb';l.textContent=L.t;lay.appendChild(l)}
+    const b=document.createElement('button');b.type='button';b.className='lay'+(L.id===COL.layout?' on':'');b.setAttribute('aria-label',L.lbl);b.innerHTML=layIcon(L);
+    b.onclick=()=>{COL.layout=L.id;while(COL.cells.length<4)COL.cells.push(colEmpty());COL.sel=-1;paintCol()};lay.appendChild(b)});
+  const sel=$('#colSel');sel.innerHTML='';const c=COL.cells[COL.sel];
+  if(c&&c.img){
+    const ch=document.createElement('button');ch.className='ghost';ch.style.margin='0';ch.textContent='Cambia foto';ch.onclick=()=>colPick(COL.sel);
+    const rm=document.createElement('button');rm.className='ghost danger';rm.style.margin='0';rm.textContent='Rimuovi';rm.onclick=()=>{COL.cells[COL.sel]=colEmpty();COL.sel=-1;paintCol()};
+    sel.append(ch,rm,sliderRow('Zoom',1,3,.01,c.z,v=>{c.z=v;colRedraw()},v=>v.toFixed(1)+'×'));
+  }else{const h=document.createElement('div');h.className='hint';h.textContent=COL.cells.slice(0,colLayout().n).some(x=>x&&x.img)?'Tocca un riquadro per modificarlo o aggiungere una foto. Trascina una foto per spostarla.':'Tocca un riquadro per aggiungere una foto.';sel.appendChild(h)}
+  const gp=$('#colGap'),rd=$('#colRad');gp.value=COL.gap;rd.value=COL.radius;$('#colGapV').textContent=Math.round(COL.gap*100);$('#colRadV').textContent=Math.round(COL.radius*100);
+  const bg=$('#colBg');bg.innerHTML='';COLBG.forEach(k=>{const b=document.createElement('button');b.type='button';b.style.background=k;b.className=k===COL.bg?'on':'';b.setAttribute('aria-label','Sfondo '+k);b.onclick=()=>{COL.bg=k;paintCol()};bg.appendChild(b)});
+  colRedraw();
+}
+function openCollage(){COL.layout='3h';COL.cells=Array.from({length:4},colEmpty);COL.sel=-1;COL.bg=COLBG[0];COL.gap=.03;COL.radius=.06;$('#colPend').hidden=true;show('col');paintCol()}
+function colPick(i){
+  COL.sel=i;pickReturn='col';
+  galPick=async it=>{endPick();pickReturn='cam';toast('Preparo la foto…');
+    try{const cv=document.createElement('canvas');await renderItemTo(it,cv,1600);COL.cells[i]={item:it.id,img:cv,z:1,fx:.5,fy:.5}}catch(e){console.error(e);toast('Foto non leggibile')}
+    show('col');paintCol()};
+  $('#galTtl').textContent='Scegli una foto';$('#galTools').hidden=true;renderGallery();show('gal');
+}
+function colHit(e){const r=$('#colView').getBoundingClientRect(),cv=$('#colView'),ar=cv.width/cv.height;let w=r.width,h=r.height;if(w/h>ar)w=h*ar;else h=w/ar;
+  const l=r.left+(r.width-w)/2,t=r.top+(r.height-h)/2,px=(e.clientX-l)/w*cv.width,py=(e.clientY-t)/h*cv.height;
+  const i=COL.rects.findIndex(([x,y,rw,rh])=>px>=x&&px<=x+rw&&py>=y&&py<=y+rh);return{i,px,py,sx:cv.width/w,sy:cv.height/h}}
+{let drag=null;const v=$('#colView');
+  v.addEventListener('pointerdown',e=>{const h=colHit(e);drag={i:h.i,x:e.clientX,y:e.clientY,moved:false,sx:h.sx,sy:h.sy};try{v.setPointerCapture(e.pointerId)}catch{}});
+  v.addEventListener('pointermove',e=>{if(!drag||drag.i<0)return;const c=COL.cells[drag.i];if(!c||!c.img||COL.sel!==drag.i)return;
+    const dx=(e.clientX-drag.x)*drag.sx,dy=(e.clientY-drag.y)*drag.sy;if(!drag.moved&&Math.hypot(e.clientX-drag.x,e.clientY-drag.y)<6)return;drag.moved=true;
+    const[,,rw,rh]=COL.rects[drag.i],ar=rw/rh,im=c.img;let sw=im.width,sh=im.width/ar;if(sh>im.height){sh=im.height;sw=im.height*ar}sw/=c.z;sh/=c.z;
+    const kx=(im.width-sw),ky=(im.height-sh);if(kx>0)c.fx=Math.max(0,Math.min(1,c.fx-dx*(sw/rw)/kx));if(ky>0)c.fy=Math.max(0,Math.min(1,c.fy-dy*(sh/rh)/ky));
+    drag.x=e.clientX;drag.y=e.clientY;colRedraw()});
+  const end=()=>{const d=drag;drag=null;if(d)d.done=true;v._moved=!!(d&&d.moved)};
+  v.addEventListener('pointerup',end);v.addEventListener('pointercancel',end);
+  v.addEventListener('click',e=>{if(v._moved){v._moved=false;return}const h=colHit(e);
+    if(h.i<0){COL.sel=-1;paintCol();return}
+    const c=COL.cells[h.i];if(!c||!c.img){colPick(h.i);return}
+    COL.sel=h.i;paintCol()});
+}
+$('#colGap').oninput=e=>{COL.gap=+e.target.value;$('#colGapV').textContent=Math.round(COL.gap*100);colRedraw()};
+$('#colRad').oninput=e=>{COL.radius=+e.target.value;$('#colRadV').textContent=Math.round(COL.radius*100);colRedraw()};
+$('#colBack').onclick=()=>{renderGallery();show('gal')};
+$('#bCollage').onclick=openCollage;
+let colBlob=null;
+$('#colSave').onclick=async()=>{
+  if(!COL.cells.slice(0,colLayout().n).some(c=>c&&c.img)){toast('Aggiungi almeno una foto');return}
+  $('#colSave').disabled=true;
+  try{
+    const cv=document.createElement('canvas');drawCollage(cv,2400,false);const raw=await toBlob(cv,'image/jpeg',.93);
+    const st=newSettings('orig');st.dateStr='';
+    const item={id:uid(),type:'photo',created:Date.now(),w:cv.width,h:cv.height,mirror:false,sheet:true,collage:true,imported:true,n:ITEMS.length+1,settings:st,thumb:await makeThumb(cv)};
+    await saveItem(item,raw);colBlob={blob:raw,name:`grana-collage-${stamp()}.jpg`};$('#colPend').hidden=false;toast('Collage salvato nel Rullino');
+  }catch(e){console.error(e);toast('Impossibile salvare il collage')}
+  $('#colSave').disabled=false};
+$('#colShare').onclick=()=>{if(colBlob)deliver(colBlob.blob,colBlob.name).catch(e=>{if(e.name!=='AbortError')download(colBlob.blob,colBlob.name)})};
 
 /* ---------------- Editor ---------------- */
 let ED=null;
@@ -1546,7 +1674,7 @@ async function exportVideo(){
 }
 
 /* ---------------- Wiring ---------------- */
-$('#bTorch').innerHTML=ic('bolt');$('#bTimer').innerHTML=ic('timer')+'';$('#bFlip').innerHTML=ic('flip');$('#galBack').innerHTML=ic('back');$('#edBack').innerHTML=ic('back');$('#impIc').innerHTML=ic('plus');
+$('#bTorch').innerHTML=ic('bolt');$('#bTimer').innerHTML=ic('timer')+'';$('#bFlip').innerHTML=ic('flip');$('#galBack').innerHTML=ic('back');$('#colBack').innerHTML=ic('back');$('#edBack').innerHTML=ic('back');$('#impIc').innerHTML=ic('plus');$('#colIc').innerHTML=ic('collage');
 function paintTimer(){const b=$('#bTimer');b.classList.toggle('on',timerSec>0);b.innerHTML=ic('timer')+(timerSec?`<small style="position:absolute;margin:18px 0 0 22px">${timerSec}</small>`:'');b.style.position='relative'}
 function paintDate(){$('#bDate').classList.toggle('on',CS.date)}
 $('#bTimer').onclick=()=>{timerSec=timerSec===0?3:timerSec===3?10:0;paintTimer();saveCS()};
@@ -1598,11 +1726,11 @@ $('#nat').onchange=async e=>{const fs=[...e.target.files];e.target.value='';if(!
 $('#dblPick').onclick=()=>{
   galPick=async it=>{endPick();try{const raw=await DB.raw(it.id),bm=await decode(raw),c=document.createElement('canvas');c.width=bm.width;c.height=bm.height;
     const x=c.getContext('2d');if(it.mirror){x.translate(c.width,0);x.scale(-1,1)}x.drawImage(bm,0,0);bm.close?.();dblA={c,w:c.width,h:c.height}}catch{toast('Foto non leggibile')}show('cam');updateDbl()};
-  $('#galTtl').textContent='Prima esposizione';$('#bSheet').hidden=true;$('#impLbl').hidden=true;renderGallery();show('gal')};
+  pickReturn='cam';$('#galTtl').textContent='Prima esposizione';$('#galTools').hidden=true;renderGallery();show('gal')};
 $('#dblCancel').onclick=()=>{dblA=null;updateDbl()};
 $('#bSheet').onclick=makeSheet;
 $('#bGal').onclick=()=>{if(recording)return;cancelCountdown();renderGallery();show('gal')};
-$('#galBack').onclick=()=>{endPick();show('cam')};
+$('#galBack').onclick=()=>{const r=galPick?pickReturn:'cam';endPick();pickReturn='cam';show(r)};
 $('#imp').onchange=e=>{importFiles([...e.target.files]);e.target.value=''};
 $('#edBack').onclick=()=>closeEd();
 $$('#edTabs button').forEach(b=>b.onclick=()=>{if(ED){ED.tab=b.dataset.t;renderPanel();if(edDrag.get()===0)edDrag.apply(1,true)}});
