@@ -361,7 +361,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
   <div class="srow" id="lensRow"><span>Obiettivo</span><div class="seg" id="lensSeg"></div></div>
   <p class="note" id="lensNote"></p>
   <div class="srow"><span>Qualità foto</span><div class="seg" data-k="hq"><button data-v="1">Massima</button><button data-v="0">Veloce</button></div></div>
-  <p class="note">Massima chiede al sensore la risoluzione più alta che il browser permette: circa 12 MP su iPhone, fino a 50 MP su molti Android. Dopo lo scatto serve circa un secondo.</p>
+  <p class="note">Massima usa la risoluzione più alta che il browser dà alla fotocamera (circa 12 MP su iPhone) e scatta all’istante. Se l’anteprima rallenta, passa a Veloce (circa 3 MP).</p>
   <button class="ghost" id="shNative">Apri la fotocamera di sistema</button>
   <p class="note">Solo per i 48 MP: usa l’app Fotocamera di iOS (senza filtro in anteprima) e la foto arriva qui per filtri e cornici. In Impostazioni › Fotocamera › Formati attiva HEIF Max.</p>
   <p class="note">Gesti: pizzica per lo zoom, tieni premuto lo scatto per la raffica. Video massimo 20 secondi.</p>
@@ -933,7 +933,7 @@ let ITEMS=[],mode='photo',facing='environment',stream=null,audioStream=null,torc
 let screenName='cam',raf=0,timerSec=0,cdT=0,recorder=null,recT0=0,recTick=0,recChunks=[],recording=false,wake=null;
 const FR={photo:'none',stamp:'stamp',double:'none',video:'none'};
 let Z=1,zHW=false,zMin=1,zMax=4,zT=0,dblA=null,galPick=null,gridMode=0,shooting=false,ovKey='';
-let lensId=null,lenses=[],capturing=false,camClass='photo';
+let lensId=null,lenses=[],capturing=false,camClass='photo',camLow=false,guardTok=0,savingCount=0,thumbJob=null,pvC=null;
 const newSettings=(preset='pastel')=>({preset,i:1,s:{...PBY[preset].s},frame:'none',date:false,dateStr:'',seed:Math.random()*100,leakAng:Math.random()*6.28,dbl:{mode:0,mix:.8,flip:0}});
 let CS=newSettings();
 try{const sv=JSON.parse(localStorage.getItem('grana.cs')||'null');if(sv&&PBY[sv.preset]){CS=Object.assign(newSettings(sv.preset),{i:1,s:{...PBY[sv.preset].s,...sv.s},date:!!sv.date,dbl:{mode:0,mix:.8,flip:0,...(sv.dbl||{}),flip:0}});timerSec=sv.timer||0}}catch{}
@@ -956,8 +956,11 @@ async function decode(blob){const bm=await createImageBitmap(blob),T=GLR?GLR.max
   const k=Math.min(1,T/m,Math.sqrt(16e6/(bm.width*bm.height)));if(k>=1)return bm;
   const b2=await createImageBitmap(bm,{resizeWidth:Math.round(bm.width*k),resizeHeight:Math.round(bm.height*k),resizeQuality:'high'});bm.close?.();return b2}
 let toastT=0;function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2400)}
-let AC;function click(){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const b=AC.createBuffer(1,AC.sampleRate*.07,AC.sampleRate),d=b.getChannelData(0);
-  for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,5);const s=AC.createBufferSource(),g=AC.createGain();g.gain.value=.5;s.buffer=b;s.connect(g);g.connect(AC.destination);s.start()}catch{}}
+let AC,CLICKB;
+function audioInit(){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();
+  if(!CLICKB){CLICKB=AC.createBuffer(1,Math.round(AC.sampleRate*.07),AC.sampleRate);const d=CLICKB.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,5)}}catch{}}
+function click(){try{audioInit();if(!CLICKB)return;const s=AC.createBufferSource(),g=AC.createGain();g.gain.value=.5;s.buffer=CLICKB;s.connect(g);g.connect(AC.destination);s.start()}catch{}}
+document.addEventListener('pointerdown',audioInit,{once:true,passive:true});
 const iOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 
 /* ---------------- Screens ---------------- */
@@ -983,20 +986,37 @@ async function startCam(keepZ){
   stopCam();
   if(!navigator.mediaDevices?.getUserMedia){showDenied();return}
   camClass=camClassOf(mode);
-  const mkc=useDev=>{const v={width:{ideal:1920},height:{ideal:camClass==='video'?1080:1440}};
+  const hi=OPT.hq&&!camLow&&camClass==='photo';
+  const mkc=useDev=>{const v={width:{ideal:hi?4032:1920},height:{ideal:camClass==='video'?1080:hi?3024:1440}};
     if(facing==='user')v.facingMode='user';else if(useDev&&lensId)v.deviceId={exact:lensId};else v.facingMode={ideal:'environment'};return{video:v,audio:false}};
   try{stream=await navigator.mediaDevices.getUserMedia(mkc(true))}
   catch(e){if(lensId){lensId=null;try{stream=await navigator.mediaDevices.getUserMedia(mkc(false))}catch(e2){showDenied(e2);return}}else{showDenied(e);return}}
   if(screenName!=='cam'){stream.getTracks().forEach(t=>t.stop());stream=null;return}
   $('#denied').hidden=true;
   vid.srcObject=stream;try{await vid.play()}catch{}
+  if(!stream||screenName!=='cam')return;                       // left the camera while it was starting
   const tr=stream.getVideoTracks()[0],caps=tr.getCapabilities?tr.getCapabilities():{};
   torchOK=!!caps.torch;torchOn=false;$('#bTorch').hidden=!torchOK;$('#bTorch').classList.remove('on');
   const zc=caps.zoom;zHW=!!(zc&&zc.max>zc.min);zMin=zHW?zc.min:1;zMax=zHW?Math.min(zc.max,10):10;
   Z=keepZ>0?Math.max(zMin,Math.min(zMax,keepZ)):zMin;
   if(zHW)tr.applyConstraints({advanced:[{zoom:Z}]}).catch(()=>{});updateZoomBadge();
   pillKey='';await listLenses();renderLenses();
+  fpsGuard();
 }
+// If the full-resolution stream makes the preview choppy, fall back to a lighter one for this session.
+function fpsGuard(){
+  if(!vid.requestVideoFrameCallback||!(OPT.hq&&!camLow&&camClass==='photo'))return;
+  const tok=++guardTok;let n=0,t0=0;
+  const tick=now=>{if(tok!==guardTok)return;if(Math.max(vid.videoWidth,vid.videoHeight)<=2400)return;if(!t0)t0=now;n++;
+    if(now-t0<2200){vid.requestVideoFrameCallback(tick);return}
+    const fps=(n-1)/((now-t0)/1000);
+    if(fps<14){camLow=true;toast('Anteprima rallentata: uso una risoluzione più leggera');startCam(Z>zMin?Z:undefined)}};
+  vid.requestVideoFrameCallback(tick);
+}
+function previewSource(){
+  const w=vid.videoWidth,h=vid.videoHeight;if(Math.max(w,h)<=1920)return{el:vid,w,h};
+  const k=1280/Math.max(w,h),pw=Math.round(w*k),ph=Math.round(h*k);pvC=pvC||document.createElement('canvas');
+  if(pvC.width!==pw)pvC.width=pw;if(pvC.height!==ph)pvC.height=ph;pvC.getContext('2d').drawImage(vid,0,0,pw,ph);return{el:pvC,w:pw,h:ph}}
 let rawLabels=[],pillKey='';
 const teleX=()=>+OPT.tele||5;
 function classifyLenses(devs){
@@ -1050,9 +1070,13 @@ function camLoop(now){
   CS.frame=FR[mode];
   const o={dateStr:CS.date?dateNow():null,n:roll.on?roll.n+1:ITEMS.length+1,zoom:zHW?1:Z,seed:CS.seed};
   if(mode==='double'&&dblA){o.src2=dblA.c;o.w2=dblA.w;o.h2=dblA.h}
-  renderTo(view,vid,vid.videoWidth,vid.videoHeight,CS,now/1000,960,facing==='user',o);
+  const ps=previewSource();
+  renderTo(view,ps.el,ps.w,ps.h,CS,now/1000,960,facing==='user',o);
   fitOverlay();
-  if(CAR&&now-thumbT>2500){thumbT=now;const sq=camSquare(104);if(sq)CAR.thumbs(sq)}
+  if(CAR){
+    if(!thumbJob&&now-thumbT>2500&&!shooting&&savingCount===0){thumbT=now;const sq=camSquare(104);if(sq)thumbJob={src:sq,i:0}}
+    if(thumbJob){CAR.thumbs(thumbJob.src,thumbJob.i,thumbJob.i+4);thumbJob.i+=4;if(thumbJob.i>=PRESETS.length)thumbJob=null}
+  }
 }
 function fitOverlay(){const ov=$('#ovl');if(ov.hidden)return;const st=view.parentElement,sw=st.clientWidth,sh=st.clientHeight,ar=view.width/view.height;
   const k=sw+'x'+sh+'x'+view.width+'x'+view.height;if(k===ovKey)return;ovKey=k;let w,h;if(sw/sh>ar){h=sh;w=sh*ar}else{w=sw;h=sw/ar}
@@ -1102,7 +1126,8 @@ function panelDrag(o){
   o.apply=apply;o.get=()=>st;apply(o.init,false);return o;
 }
 /* ---------------- Carosello filtri ---------------- */
-let CAR=null,thumbT=0;
+let CAR=null,thumbT=0,GLT=null;
+function thumbGL(){return GLT||(GLT=makeGL())}
 const CAR_PITCH=62;
 function makeCarousel(box,onPick,lbl){
   box.innerHTML='';box.className='chips carS';
@@ -1119,8 +1144,9 @@ function makeCarousel(box,onPick,lbl){
     if(tgt!==null){if(Math.abs(box.scrollLeft-tgt*CAR_PITCH)<3)tgt=null;return}
     const i=Math.max(0,Math.min(PRESETS.length-1,Math.round(box.scrollLeft/CAR_PITCH)));if(i!==idx)pick(i,true)},{passive:true});
   return{set(i,instant){paint(i);go(i,!instant)},
-    thumbs(src){if(!GLR)return;PRESETS.forEach((P,k)=>{const st={preset:P.id,i:1,s:P.s,seed:7,leakAng:2.2,dbl:{mode:0,mix:.8,flip:0}};
-      if(GLR.draw(src,src.width,src.height,st,0,false,{})===false)return;cvs[k].getContext('2d').drawImage(GLR.canvas,0,0,104,104)})},
+    thumbs(src,a=0,b=PRESETS.length){const g=thumbGL();if(!g)return;
+      for(let k=a;k<Math.min(b,PRESETS.length);k++){const P=PRESETS[k],st={preset:P.id,i:1,s:P.s,seed:7,leakAng:2.2,dbl:{mode:0,mix:.8,flip:0}};
+        if(g.draw(src,src.width,src.height,st,0,false,{})===false){GLT=null;return}cvs[k].getContext('2d').drawImage(g.canvas,0,0,104,104)}},
     get idx(){return idx}};
 }
 function squareSrc(el,sw,sh,size,mirror){const c=document.createElement('canvas');c.width=c.height=size;const x=c.getContext('2d'),m=Math.min(sw,sh);
@@ -1202,49 +1228,37 @@ function shoot(){
 const toBlob=(c,t='image/jpeg',q=.93)=>new Promise(r=>c.toBlob(r,t,q));
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function flashClick(){const fl=$('#flash');fl.classList.remove('go');void fl.offsetWidth;fl.classList.add('go');click()}
-const STILLPX=16e6;
-const withTO=(pr,ms)=>Promise.race([pr,new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),ms))]);
-async function stillCanvas(fast){
-  const tr=stream&&stream.getVideoTracks()[0];
-  const fromFrame=()=>{const c=document.createElement('canvas');c.width=vid.videoWidth;c.height=vid.videoHeight;c.getContext('2d').drawImage(vid,0,0);return c};
-  if(fast||!OPT.hq||!tr)return fromFrame();
-  if(window.ImageCapture){
-    try{const ic=new ImageCapture(tr),pc=await withTO(ic.getPhotoCapabilities(),3000),opt={};
-      if(pc.imageWidth&&pc.imageHeight){opt.imageWidth=pc.imageWidth.max;opt.imageHeight=pc.imageHeight.max}
-      const bm=await createImageBitmap(await withTO(ic.takePhoto(opt),6000)),ar=vid.videoWidth/vid.videoHeight,bar=bm.width/bm.height;
-      if((bar>1)!==(ar>1))throw new Error('orientation');
-      let sx=0,sy=0,sw=bm.width,sh=bm.height;if(bar>ar*1.02){sw=bm.height*ar;sx=(bm.width-sw)/2}else if(bar<ar/1.02){sh=bm.width/ar;sy=(bm.height-sh)/2}
-      const k=Math.min(1,Math.sqrt(STILLPX/(sw*sh))),c=document.createElement('canvas');c.width=Math.round(sw*k);c.height=Math.round(sh*k);
-      c.getContext('2d').drawImage(bm,sx,sy,sw,sh,0,0,c.width,c.height);bm.close?.();return c}
-    catch(e){}
-  }
-  try{
-    const w0=vid.videoWidth;capturing=true;
-    await withTO(tr.applyConstraints({width:{ideal:4032},height:{ideal:3024}}),2500);
-    await Promise.race([new Promise(r=>vid.addEventListener('resize',r,{once:true})),sleep(1200)]);await sleep(350);
-    let c=null;if(vid.videoWidth>w0*1.1){c=fromFrame();const k=Math.min(1,Math.sqrt(STILLPX/(c.width*c.height)));if(k<1){const c2=document.createElement('canvas');c2.width=Math.round(c.width*k);c2.height=Math.round(c.height*k);c2.getContext('2d').drawImage(c,0,0,c2.width,c2.height);c=c2}}
-    tr.applyConstraints({width:{ideal:1920},height:{ideal:1440}}).catch(()=>{});
-    if(c)return c;
-  }catch(e){}finally{capturing=false}
-  return fromFrame();
-}
+function frameCanvas(){const c=document.createElement('canvas');c.width=vid.videoWidth;c.height=vid.videoHeight;c.getContext('2d').drawImage(vid,0,0);return c}
 function bakeStill(c0){const zd=zHW?1:Z,sw=c0.width/zd,sh=c0.height/zd,c=document.createElement('canvas');c.width=Math.round(sw);c.height=Math.round(sh);
   const x=c.getContext('2d');if(facing==='user'){x.translate(c.width,0);x.scale(-1,1)}x.drawImage(c0,(c0.width-sw)/2,(c0.height-sh)/2,sw,sh,0,0,c.width,c.height);return{c,w:c.width,h:c.height}}
 async function takePhoto(quiet){
-  if(!vid.videoWidth||shooting)return false;shooting=true;
-  const m0=mode,A0=dblA;
+  if(!vid.videoWidth||shooting)return false;
+  if(savingCount>=3){if(!quiet)toast('Un attimo, sto salvando…');return false}
+  shooting=true;
   try{
+    const m0=mode,A0=dblA;
     flashClick();
-    const still=await stillCanvas(!!quiet);
+    await new Promise(r=>requestAnimationFrame(r));         // flash and click appear first, then the frame is grabbed (one frame later at most)
+    const still=frameCanvas(),thumbP=makeThumb(view);
     if(m0==='double'&&!A0){dblA=bakeStill(still);updateDbl();return true}
-    const w=still.width,h=still.height,raw=await toBlob(still);
-    const item={id:uid(),type:'photo',created:Date.now(),w,h,mirror:facing==='user',zoom:zHW?1:Z,n:ITEMS.length+1,roll:roll.on?roll.id:null,frame:roll.on?roll.n+1:null,ready:readyAt(),settings:snapshot(),thumb:await makeThumb(view)};
-    let raw2;
-    if(m0==='double'&&A0){raw2=await toBlob(A0.c);item.double=true;item.w2=A0.w;item.h2=A0.h;if(dblA===A0)dblA=null;updateDbl()}
-    await saveItem(item,raw,raw2);advanceRoll(item.double?2:1);
-    if(!quiet)toast(isPending(item)?'Scattata · si sviluppa '+whenLabel(item.ready):m0==='stamp'?'Stamp salvato nel Rullino':item.double?'Doppia esposizione salvata':'Foto salvata nel Rullino');
+    const st=snapshot(),n=ITEMS.length+1+savingCount;
+    const meta={still,m0,A0,st,n,thumbP,quiet,mirror:facing==='user',zoom:zHW?1:Z,roll:roll.on?roll.id:null,frame:roll.on?roll.n+1:null,ready:readyAt(),created:Date.now()};
+    if(m0==='double'&&A0){if(dblA===A0)dblA=null;updateDbl()}
+    advanceRoll(m0==='double'&&A0?2:1);
+    savingCount++;finishPhoto(meta);                         // encode + save while the camera is already ready again
     return true;
   }finally{shooting=false}
+}
+async function finishPhoto(o){
+  try{
+    const raw=await toBlob(o.still);
+    const item={id:uid(),type:'photo',created:o.created,w:o.still.width,h:o.still.height,mirror:o.mirror,zoom:o.zoom,n:o.n,roll:o.roll,frame:o.frame,ready:o.ready,settings:o.st,thumb:await o.thumbP};
+    let raw2;
+    if(o.m0==='double'&&o.A0){raw2=await toBlob(o.A0.c);item.double=true;item.w2=o.A0.w;item.h2=o.A0.h}
+    await saveItem(item,raw,raw2);
+    if(!o.quiet)toast(isPending(item)?'Scattata · si sviluppa '+whenLabel(item.ready):o.m0==='stamp'?'Stamp salvato nel Rullino':item.double?'Doppia esposizione salvata':'Foto salvata nel Rullino');
+  }catch(e){console.error(e);toast('Salvataggio non riuscito')}
+  finally{savingCount--}
 }
 async function saveItem(item,raw,raw2){
   try{await DB.put(item,raw,raw2)}catch(e){toast('Memoria piena: elimina qualcosa dal Rullino');return}
@@ -1715,7 +1729,7 @@ function paintLensSeg(){
   P.forEach(p=>{const b=document.createElement('button');b.textContent=p.label;b.className=(p.key===act?'on':'')+(p.missing?' dim':'');b.onclick=()=>pickLens(p);seg.appendChild(b)})}
 function paintSheet(){paintLensSeg();$$('#sheet .seg').forEach(sg=>{const k=sg.dataset.k;$$('button',sg).forEach(b=>{const v=k==='roll'?(roll.on?'on':'off'):k==='hq'?(OPT.hq?'1':'0'):OPT[k];b.classList.toggle('on',b.dataset.v===String(v))})})}
 $$('#sheet .seg button').forEach(b=>b.onclick=()=>{const k=b.parentElement.dataset.k,v=b.dataset.v;
-  if(k==='roll'){roll.on=v==='on';saveRoll();paintRoll()}else if(k==='hq')OPT.hq=v==='1';else OPT[k]=v;optSave();pillKey='';renderLenses();paintSheet()});
+  if(k==='roll'){roll.on=v==='on';saveRoll();paintRoll()}else if(k==='hq')OPT.hq=v==='1';else OPT[k]=v;optSave();pillKey='';renderLenses();paintSheet();if(k==='hq'&&screenName==='cam'){camLow=false;startCam()}});
 $('#shNew').onclick=()=>{roll={id:uid(),n:0,on:true};saveRoll();paintRoll();paintSheet();toast('Nuovo rullino da 24 pose')};
 $('#bRoll').onclick=()=>{paintSheet();$('#sheet').hidden=false};
 $('#shClose').onclick=()=>{$('#sheet').hidden=true};
