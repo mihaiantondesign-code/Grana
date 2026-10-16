@@ -373,7 +373,7 @@ const SL=[
   {k:'leak',label:'Perdite di luce',min:0,max:1,step:.01},
   {k:'dust',label:'Polvere e graffi',min:0,max:1,step:.01}
 ];
-const X0={lift:[0,0,0],gain:[1,1,1],tint:[1,1,1],mono:0,ca:0,scan:0,flick:0,weave:0,flash:0,soft:0};
+const X0={lift:[0,0,0],gain:[1,1,1],tint:[1,1,1],mono:0,ca:0,scan:0,flick:0,weave:0,flash:0,soft:0,hal:0,crease:0,rough:0};
 const base={warmth:0,contrast:1,sat:1,fade:0,grain:0,vig:0,glow:0,leak:0,dust:0};
 const mk=(id,name,iso,sw,s,x={})=>({id,name,iso,sw,s:{...base,...s},x:{...X0,...x}});
 const PRESETS=[
@@ -393,6 +393,11 @@ const PRESETS=[
   mk('oro','Oro','200',['#f0c34a','#a8581f'],{warmth:.4,contrast:1.12,sat:1.25,fade:.12,grain:.3,vig:.3,glow:.15,dust:.08},{lift:[.03,.01,0],gain:[1.07,1.01,.88]}),
   mk('cinema','Cinema','500T',['#e08a3c','#1f6f7f'],{contrast:1.18,sat:1.1,fade:.1,grain:.45,vig:.35,glow:.2,leak:.1,dust:.1},{lift:[-.02,.03,.05],gain:[1.1,1,.82],weave:.4,flick:.1}),
   mk('notte','Notte blu','800T',['#1e3a6e','#e8a14a'],{warmth:-.35,contrast:1.2,sat:1.1,fade:.08,grain:.55,vig:.45,glow:.35,leak:.1,dust:.08},{lift:[-.02,0,.06],gain:[.95,1,1.1]}),
+  mk('faro','Faro','teal',['#2f8f8c','#e8b27a'],{warmth:.1,contrast:1.2,sat:1.15,fade:.16,grain:.7,vig:.6,glow:.28,leak:.1,dust:.25},{lift:[-.03,.045,.055],gain:[1.1,1,.88],soft:.07,hal:.32,ca:.35,rough:.3}),
+  mk('salotto','Salotto','tungsteno',['#c8832f','#3a1c10'],{warmth:.5,contrast:1.24,sat:1.15,fade:.12,grain:.65,vig:.8,glow:.25,leak:.2,dust:.25},{lift:[.06,.01,-.03],gain:[1.14,1,.8],soft:.06,hal:.5,rough:.3}),
+  mk('laguna','Laguna','verde mare',['#1e9a8a','#2f5f3a'],{warmth:-.12,contrast:1.14,sat:1.3,fade:.15,grain:.65,vig:.55,glow:.2,dust:.2},{lift:[-.04,.05,.04],gain:[1.05,1.02,.9],hal:.22,ca:.3,rough:.25}),
+  mk('stampaV','Stampa verde','sporca',['#7a8a4a','#1a1a12'],{warmth:.05,contrast:1.15,sat:.7,fade:.38,grain:.8,vig:.85,glow:.1,leak:.3,dust:1},{lift:[-.01,.035,-.01],gain:[1,1.06,.86],crease:.85,rough:.9}),
+  mk('stampaB','Stampa azzurra','sporca',['#4a9fb8','#1a3a50'],{warmth:-.45,contrast:1.1,sat:.85,fade:.32,grain:.75,vig:.65,glow:.1,leak:.1,dust:.9},{lift:[-.03,.03,.07],gain:[.9,1.03,1.1],crease:.6,rough:.7}),
   mk('flashcam','Usa e getta','flash',['#f3ece0','#3a4a66'],{warmth:-.05,contrast:1.2,sat:1.1,fade:.05,grain:.45,vig:.3,glow:.45,dust:.1},{flash:1,lift:[0,.02,.04],gain:[1,1,1.05]}),
   mk('vhs','VHS ’86','cam',['#e04a9a','#27c7d6'],{warmth:-.1,contrast:1.05,sat:1.4,fade:.15,grain:.5,vig:.3,glow:.45},{lift:[.02,0,.04],scan:1,ca:1,flick:.3})
 ];
@@ -628,11 +633,42 @@ Object.assign(FRAMES,{
       const cy=o.y+o.ch+b*.3+o.bt*.45;[o.W-b*2.2,o.W-b*4.4].forEach(cx=>{const r=c.createRadialGradient(cx-b*.1,cy-b*.1,0,cx,cy,o.bt*.2);r.addColorStop(0,'#bbb6a8');r.addColorStop(1,'#4a473f');c.fillStyle=r;c.beginPath();c.arc(cx,cy,o.bt*.2,0,7);c.fill()});
       c.strokeStyle='rgba(0,0,0,.55)';c.lineWidth=Math.max(1,o.W*.004);for(let k=0;k<6;k++){const x=b*1.2+k*b*.38;c.beginPath();c.moveTo(x,cy-o.bt*.2);c.lineTo(x,cy+o.bt*.2);c.stroke()}}}
 });
+const squircleP=(c,x,y,w,h)=>{const n=5,cx=x+w/2,cy=y+h/2;for(let i=0;i<=120;i++){const t=i/120*Math.PI*2,ct=Math.cos(t),st=Math.sin(t),
+  px=cx+Math.sign(ct)*Math.pow(Math.abs(ct),2/n)*w/2,py=cy+Math.sign(st)*Math.pow(Math.abs(st),2/n)*h/2;i?c.lineTo(px,py):c.moveTo(px,py)}c.closePath()};
+function zoomContent(o,x,y,w,h,z,fx,fy){const r=o.cr,sw=r.sw/z,sh=r.sh/z;o.ctx.drawImage(o.src,r.sx+(r.sw-sw)*fx,r.sy+(r.sh-sh)*fy,sw,sh,x,y,w,h)}
+function glowWindow(o,x,y,w,h,z,fx,fy){
+  const c=o.ctx;c.save();c.shadowColor='rgba(175,72,62,.9)';c.shadowBlur=o.x*.75;c.beginPath();squircleP(c,x,y,w,h);c.fillStyle='#120a0a';c.fill();c.restore();
+  c.save();c.beginPath();squircleP(c,x,y,w,h);c.clip();zoomContent(o,x,y,w,h,z,fx,fy);
+  const g=c.createRadialGradient(x+w/2,y+h/2,Math.min(w,h)*.34,x+w/2,y+h/2,Math.max(w,h)*.62);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(45,10,10,.6)');c.fillStyle=g;c.fillRect(x,y,w,h);c.restore();
+  c.beginPath();squircleP(c,x,y,w,h);c.strokeStyle='rgba(155,72,70,.8)';c.lineWidth=Math.max(1.5,o.W*.004);c.stroke();
+}
+Object.assign(FRAMES,{
+  visore:{name:'Visore',iso:'bagliore',sw:['#8a3a34','#0a0606'],ar:1.4,alpha:true,dateCenter:true,
+    geom:(w,h)=>{const b=w*.1;return{W:w+2*b,H:h+2*b,x:b,y:b}},
+    paint:o=>glowWindow(o,o.x,o.y,o.cw,o.ch,1,.5,.5)},
+  trittico:{name:'Trittico',iso:'3 inquadrature',sw:['#8a3a34','#0a0606'],ar:1.4,alpha:true,
+    geom:(w,h)=>{const b=w*.1,g=w*.07;return{W:w+2*b,H:3*h+2*g+2*b+w*.05,x:b,y:b,g}},
+    paint:o=>{const v=[[1,.5,.5],[1.6,.55,.45],[1.25,.4,.8]];
+      v.forEach((q,k)=>glowWindow(o,o.x,o.y+k*(o.ch+o.g),o.cw,o.ch,q[0],q[1],q[2]));
+      const c=o.ctx;c.fillStyle='rgba(235,225,215,.55)';c.font=`600 ${o.W*.022}px ui-monospace,Menlo,monospace`;c.textAlign='center';c.textBaseline='middle';c.fillText('GRANA',o.W/2,o.H-o.x*.45);c.textAlign='left'}},
+  pressa:{name:'Fori pellicola',iso:'a filo',sw:['#050505','#8fa27a'],ar:null,bg:'#f4f2ec',
+    geom:(w,h)=>{const b=Math.max(w,h)*.012;return{W:w+2*b,H:h+2*b,x:b,y:b}},
+    paint:o=>{const c=o.ctx;c.fillStyle='#f4f2ec';c.fillRect(0,0,o.W,o.H);content(o);
+      const horiz=o.cw>=o.ch,L=horiz?o.cw:o.ch,S=horiz?o.ch:o.cw,hs=S*.085,n=Math.max(4,Math.round(L/(hs*1.62))),real=L/n,m=S*.03;
+      c.save();c.beginPath();c.rect(o.x,o.y,o.cw,o.ch);c.clip();
+      const e=S*.16;[[0,0,horiz?o.cw:e,horiz?e:o.ch,horiz?[0,0,0,1]:[0,0,1,0]],[horiz?0:o.cw-e,horiz?o.ch-e:0,horiz?o.cw:e,horiz?e:o.ch,horiz?[0,1,0,0]:[1,0,0,0]]].forEach(([dx,dy,w,h,d])=>{
+        const g=c.createLinearGradient(o.x+dx+(d[0]?w:0),o.y+dy+(d[1]?h:0),o.x+dx+(d[2]?w:0),o.y+dy+(d[3]?h:0));g.addColorStop(0,'rgba(0,0,0,.6)');g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(o.x+dx,o.y+dy,w,h)});
+      c.fillStyle='#050505';
+      for(let k=0;k<n;k++){const p=(k+.5)*real-hs/2;
+        if(horiz){rr(c,o.x+p,o.y+m,hs,hs*.92,hs*.26);c.fill();rr(c,o.x+p,o.y+o.ch-m-hs*.92,hs,hs*.92,hs*.26);c.fill()}
+        else{rr(c,o.x+m,o.y+p,hs*.92,hs,hs*.26);c.fill();rr(c,o.x+o.cw-m-hs*.92,o.y+p,hs*.92,hs,hs*.26);c.fill()}}
+      c.restore()}}
+});
 const CATS={
   'Istantanee':['polaroid','polacolor','polastripes','instax','instaxwide','cabina'],
-  'Pellicola':['film','film35h','neg','slide','mirino','cam'],
+  'Pellicola':['film','film35h','pressa','neg','slide','mirino','cam'],
   'Carta':['oldphoto','strappata','album','nastro','diario','cartolina','ticket','stamp','passepartout','bordo','bordoN','antica'],
-  'Forme':['circle','oval','cuore','arco','esagono','fiore','rombo','oblo','sfumato','tv']
+  'Forme':['visore','trittico','circle','oval','cuore','arco','esagono','fiore','rombo','oblo','sfumato','tv']
 };
 for(const [k,l] of Object.entries(CATS))l.forEach(id=>{FRAMES[id].cat=k});
 ['stamp','oldphoto','circle','oval','film','ticket'].forEach(id=>{FRAMES[id].alpha=true});
@@ -690,7 +726,7 @@ uniform vec2 res,sc2;
 uniform float zoom,dbl,bm,bmix,flip2;
 uniform float t,seed,mirror,leakAng;
 uniform float inten,warmth,contrast,sat,fade,grain,vig,glow,leak,dust;
-uniform float mono,ca,scan,flick,weave,flash,soft;
+uniform float mono,ca,scan,flick,weave,flash,soft,hal,crease,rough;
 uniform vec3 lift,gain,tint;
 const vec3 LW=vec3(.299,.587,.114);
 float h11(float p){p=fract(p*.1031);p*=p+33.33;p*=p+p;return fract(p);}
@@ -735,18 +771,29 @@ void main(){
   c=mix(c,vec3(g2)*tint,mono);
   c=c*(1.-.7*fade)+fade*.16*vec3(1.,.96,.9);
   c+=max(bl-.55,0.)*glow*vec3(1.,.85,.7)*1.6;
+  c+=max(bl-.5,0.)*hal*vec3(1.,.28,.12)*1.8;
   vec2 dd=(uv-.5)*vec2(asp,1.);
   float dist=length(dd)/length(vec2(asp,1.)*.5);
   c*=1.+flash*.4*(1.-smoothstep(0.,.8,dist));
   c*=1.-flash*.3*smoothstep(.45,1.,dist);
   c=(c-.5)*(1.+flash*.1)+.5+flash*.04;
-  c*=1.-vig*.95*smoothstep(.3,1.05,dist);
+  float rn=h21(floor(v*res/max(2.,res.y/160.))+seed)-.5;
+  c*=1.-vig*.95*smoothstep(.3,1.05,dist+rn*rough*.3);
+  c=mix(c,c*vec3(1.,.82,.62),rough*smoothstep(.72,1.1,dist));
   vec2 q=vec2(uv.x*asp,uv.y);
   vec2 p1=vec2((.5+cos(leakAng)*.62)*asp,.5+sin(leakAng)*.62);
   vec2 p2=vec2((.5+cos(leakAng+2.5)*.7)*asp,.5+sin(leakAng+2.5)*.7);
   float lk=clamp(exp(-distance(q,p1)*3.)+.5*exp(-distance(q,p2)*4.),0.,1.);
   vec3 lc=mix(vec3(1.,.25,.05),vec3(1.,.78,.3),lk);
   c=1.-(1.-c)*(1.-lc*lk*leak*.9);
+  if(crease>0.){
+    for(int k=0;k<3;k++){float fk=float(k);
+      float ang=h11(seed*3.1+fk*7.7)*3.14159;vec2 dir=vec2(cos(ang),sin(ang)),nrm=vec2(-dir.y,dir.x);
+      vec2 pq=vec2(v.x*asp,v.y)-vec2(.5*asp,.5);float off=(h11(seed*5.3+fk*2.9)-.5)*.8,d=abs(dot(pq,nrm)-off);
+      float ln=smoothstep(.0035,.0,d)*(.5+.5*h11(floor(dot(pq,dir)*28.)+fk*13.));
+      float sh=smoothstep(.014,.0,abs(d-.005))*.3;
+      c=mix(c,vec3(.93),ln*crease*.5);c*=1.-sh*crease*.4;}
+  }
   c*=1.+flick*(h11(fr*3.1+seed)-.5)*.25;
   c*=1.-scan*.2*(.5+.5*sin(uv.y*780.*6.2832/3.));
   c+=scan*.05*(h11(floor(uv.y*260.)+fr)-.5);
@@ -806,7 +853,7 @@ function makeGL(){
       const P=PBY[st.preset]||PBY.orig,x=P.x,s=st.s;
       U('res',[w,h]);U('t',t);U('seed',st.seed);U('mirror',mirror?1:0);U('leakAng',st.leakAng);U('inten',st.i);
       U('warmth',s.warmth);U('contrast',s.contrast);U('sat',s.sat);U('fade',s.fade);U('grain',s.grain);U('vig',s.vig);U('glow',s.glow);U('leak',s.leak);U('dust',s.dust);
-      for(const k of ['mono','ca','scan','flick','weave','flash','soft'])U(k,x[k]);
+      for(const k of ['mono','ca','scan','flick','weave','flash','soft','hal','crease','rough'])U(k,x[k]);
       for(const k of ['lift','gain','tint'])U(k,x[k]);
       gl.drawArrays(gl.TRIANGLE_STRIP,0,4);return true;
     }};
@@ -1339,10 +1386,11 @@ const TFONTS={
   classic:{n:'Classico',css:'800 {s}px -apple-system,"Helvetica Neue",Arial,sans-serif'},
   type:{n:'Macchina',css:'700 {s}px ui-monospace,"Courier New",monospace'},
   serif:{n:'Serif',css:'italic 700 {s}px Georgia,"Times New Roman",serif'},
+  poesia:{n:'Poesia',css:'italic 500 {s}px Georgia,"Times New Roman",serif'},
   hand:{n:'Mano',css:'700 {s}px "Bradley Hand","Segoe Script","Marker Felt","Comic Sans MS",cursive'},
   caps:{n:'Maiuscolo',css:'900 {s}px Impact,"Arial Black",sans-serif',up:true}
 };
-const TCOLS=['#ffffff','#111111','#f2b632','#e5432d','#ff7aa8','#52c7a0','#4aa3ff'];
+const TCOLS=['#ffffff','#111111','#f4ec3d','#f2b632','#e5432d','#ff7aa8','#52c7a0','#4aa3ff'];
 const TBG=['Sfondo: nessuno','Sfondo: pieno','Sfondo: scuro'];
 const TBOX=new Map(),TLAST={f:'classic',c:'#ffffff',bg:0};
 const lumOf=h=>{const n=parseInt(h.slice(1),16);return(.299*(n>>16&255)+.587*(n>>8&255)+.114*(n&255))/255};
