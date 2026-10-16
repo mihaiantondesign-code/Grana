@@ -149,7 +149,8 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 .catlbl{flex:none;align-self:center;writing-mode:vertical-rl;transform:rotate(180deg);font:600 9px var(--mono);letter-spacing:.14em;color:var(--dim);text-transform:uppercase;padding:0 2px}
 .chips.wrap .catlbl{writing-mode:horizontal-tb;transform:none;flex-basis:100%;padding:10px 2px 2px;align-self:auto}
 #lensBar{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:flex;gap:4px;padding:4px;border-radius:99px;background:rgba(0,0,0,.5)}
-#lensBar button{min-width:38px;height:32px;padding:0 9px;border-radius:99px;font:700 12px var(--mono);color:#fff}
+#lensBar button{min-width:42px;height:36px;padding:0 10px;border-radius:99px;font:700 13px var(--mono);color:#fff}
+#lensBar button.dim,.seg button.dim{opacity:.45}
 #lensBar button.on{background:var(--acc);color:#1a1405}
 #sheet{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.62);display:flex;align-items:flex-end}
 .sbox{width:100%;max-height:88%;overflow-y:auto;background:var(--panel);border-top:1px solid var(--line);border-radius:18px 18px 0 0;
@@ -256,6 +257,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
   <button class="ghost" id="shNew">Nuovo rullino</button>
   <div class="srow"><span>Sviluppo delle foto</span><div class="seg" data-k="dev"><button data-v="now">Subito</button><button data-v="1m">1 min</button><button data-v="1h">1 ora</button><button data-v="am">Domani 9:00</button></div></div>
   <p class="note">Come una usa e getta: la foto resta “in sviluppo” nel Rullino e si rivela solo dopo l’attesa. Scegli 1 min per provare.</p>
+  <div class="srow"><span>Zoom del teleobiettivo</span><div class="seg" data-k="tele"><button data-v="2">2×</button><button data-v="3">3×</button><button data-v="5">5×</button></div></div>
   <div class="srow" id="lensRow"><span>Obiettivo</span><div class="seg" id="lensSeg"></div></div>
   <p class="note" id="lensNote"></p>
   <div class="srow"><span>Qualità foto</span><div class="seg" data-k="hq"><button data-v="1">Massima</button><button data-v="0">Veloce</button></div></div>
@@ -775,7 +777,7 @@ let roll={id:uid(),n:0,on:true};try{const r=JSON.parse(localStorage.getItem('gra
 const saveRoll=()=>{try{localStorage.setItem('grana.roll',JSON.stringify(roll))}catch{}};
 function paintRoll(){const b=$('#bRoll');b.textContent=roll.on?`${roll.n}/24`:'∞';b.classList.toggle('on',roll.on)}
 function advanceRoll(k){if(!roll.on)return;roll.n+=k;if(roll.n>=24){toast('Rullino finito: crea il provino dal Rullino');roll={id:uid(),n:0,on:true}}saveRoll();paintRoll()}
-const OPT={dev:'now',hq:true};try{Object.assign(OPT,JSON.parse(localStorage.getItem('grana.opt')||'{}'))}catch{}
+const OPT={dev:'now',hq:true,tele:5};try{Object.assign(OPT,JSON.parse(localStorage.getItem('grana.opt')||'{}'))}catch{}
 const isPending=it=>!!it.ready&&it.ready>Date.now();
 function readyAt(){const n=Date.now();if(OPT.dev==='1m')return n+60e3;if(OPT.dev==='1h')return n+3600e3;
   if(OPT.dev==='am'){const d=new Date();d.setHours(9,0,0,0);if(d.getTime()-n<3600e3)d.setDate(d.getDate()+1);return d.getTime()}return 0}
@@ -822,13 +824,14 @@ async function startCam(keepZ){
   vid.srcObject=stream;try{await vid.play()}catch{}
   const tr=stream.getVideoTracks()[0],caps=tr.getCapabilities?tr.getCapabilities():{};
   torchOK=!!caps.torch;torchOn=false;$('#bTorch').hidden=!torchOK;$('#bTorch').classList.remove('on');
-  const zc=caps.zoom;zHW=!!(zc&&zc.max>zc.min);zMin=zHW?zc.min:1;zMax=zHW?Math.min(zc.max,10):4;
+  const zc=caps.zoom;zHW=!!(zc&&zc.max>zc.min);zMin=zHW?zc.min:1;zMax=zHW?Math.min(zc.max,10):10;
   Z=keepZ>0?Math.max(zMin,Math.min(zMax,keepZ)):zMin;
   if(zHW)tr.applyConstraints({advanced:[{zoom:Z}]}).catch(()=>{});updateZoomBadge();
-  await listLenses();renderLenses();
+  pillKey='';await listLenses();renderLenses();
 }
-let rawLabels=[];
-function classifyLenses(devs,zoomHW){
+let rawLabels=[],pillKey='';
+const teleX=()=>+OPT.tele||5;
+function classifyLenses(devs){
   const rows=devs.map(x=>{const l=(x.label||'').toLowerCase();
     return{id:x.deviceId,
       front:/front|anterior|selfie|facetime|frontale|user/.test(l),
@@ -837,28 +840,40 @@ function classifyLenses(devs,zoomHW){
   let L=rows.filter(x=>!x.virt);if(!L.length)L=rows;
   L.sort((a,b)=>a.k-b.k);
   const seen={},out=[];
-  L.slice(0,5).forEach(x=>{const dup=seen[x.k];seen[x.k]=true;out.push({id:x.id,k:x.k,label:dup?'Cam '+(out.length+1):['0,5×','1×','Tele'][x.k]})});
-  const res=out.map(({id,label})=>({id,label})),main=out.find(x=>x.k===1);
-  if(main&&!zoomHW)res.splice(res.findIndex(x=>x.id===main.id)+1,0,{id:main.id,label:'2×',z:2});
-  return res;
+  L.slice(0,5).forEach(x=>{if(!seen[x.k]){seen[x.k]=true;out.push({id:x.id,k:x.k})}else if(!L.some(y=>y.k!==1)){out.push({id:x.id,k:3+out.length,label:'Cam '+(out.length+1)})}});
+  return out;
 }
 async function listLenses(){
   lenses=[];rawLabels=[];if(facing==='user')return;
   try{
     const devs=(await navigator.mediaDevices.enumerateDevices()).filter(x=>x.kind==='videoinput');
     rawLabels=devs.map(x=>x.label||'?');
-    lenses=classifyLenses(devs,zHW);
+    lenses=classifyLenses(devs);
   }catch{}
 }
-async function pickLens(p){lensId=p.id;$('#sheet').hidden=true;await startCam(p.z||1)}
+function lensPills(){
+  const by=k=>lenses.find(l=>l.k===k),main=by(1),ultra=by(0),tele=by(2),tx=teleX(),mid=main?main.id:null;
+  const P=[{key:'u',label:'0,5×',id:ultra?ultra.id:null,z:1,missing:!ultra},{key:'m',label:'1×',id:mid,z:1}];
+  if(tx!==2)P.push({key:'d',label:'2×',id:mid,z:2});
+  P.push({key:'t',label:tx+'×',id:tele?tele.id:mid,z:tele?1:tx});
+  lenses.filter(l=>l.k>=3).forEach(l=>P.push({key:'x'+l.id,label:l.label,id:l.id,z:1}));
+  return P;
+}
+function activePill(P){
+  const tr=stream&&stream.getVideoTracks()[0],cur=tr&&tr.getSettings?tr.getSettings().deviceId:null,tele=lenses.find(l=>l.k===2),ultra=lenses.find(l=>l.k===0),tx=teleX();
+  if(ultra&&cur===ultra.id)return'u';if(tele&&cur===tele.id)return't';
+  const ex=P.find(p=>p.key[0]==='x'&&p.id===cur);if(ex)return ex.key;
+  if(!tele&&Z>=tx*.9)return't';if(Z>=1.9&&tx!==2)return'd';if(tele===undefined&&tx===2&&Z>=1.9)return't';return'm';
+}
+async function pickLens(p){
+  if(p.missing){toast('Obiettivo 0,5× non rilevato. Controlla le fotocamere rilevate in Rullino e impostazioni.');return}
+  lensId=p.id;$('#sheet').hidden=true;await startCam(p.z);
+}
 function renderLenses(){
-  const bar=$('#lensBar');if(lenses.length<2||facing==='user'){bar.hidden=true;return}
-  const cur=stream&&stream.getVideoTracks()[0]&&stream.getVideoTracks()[0].getSettings?stream.getVideoTracks()[0].getSettings().deviceId:null;
-  const zoomed=Z>=1.9&&lenses.some(q=>q.z&&q.id===cur);
-  bar.innerHTML='';bar.hidden=false;
-  lenses.forEach(p=>{const b=document.createElement('button');b.textContent=p.label;
-    b.className=(p.z?zoomed&&p.id===cur:p.id===cur&&!zoomed)?'on':'';
-    b.onclick=()=>pickLens(p);bar.appendChild(b)});
+  const bar=$('#lensBar');if(facing==='user'||!stream){bar.hidden=true;pillKey='';return}
+  const P=lensPills(),act=activePill(P),key=P.map(p=>p.key+p.label).join()+'|'+act;
+  bar.hidden=false;if(key===pillKey)return;pillKey=key;bar.innerHTML='';
+  P.forEach(p=>{const b=document.createElement('button');b.textContent=p.label;b.className=(p.key===act?'on':'')+(p.missing?' dim':'');b.onclick=()=>pickLens(p);bar.appendChild(b)});
 }
 function stopCam(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}vid.srcObject=null}
 function camLoop(now){
@@ -873,7 +888,7 @@ function camLoop(now){
 function fitOverlay(){const ov=$('#ovl');if(ov.hidden)return;const st=view.parentElement,sw=st.clientWidth,sh=st.clientHeight,ar=view.width/view.height;
   const k=sw+'x'+sh+'x'+view.width+'x'+view.height;if(k===ovKey)return;ovKey=k;let w,h;if(sw/sh>ar){h=sh;w=sh*ar}else{w=sw;h=sw/ar}
   ov.style.cssText=`left:${(sw-w)/2}px;top:${(sh-h)/2}px;width:${w}px;height:${h}px`}
-function updateZoomBadge(){const b=$('#zoomBadge'),r=Z/zMin;b.hidden=r<1.05;b.textContent=r.toFixed(1)+'×'}
+function updateZoomBadge(){const b=$('#zoomBadge'),r=Z/zMin;b.hidden=r<1.05;b.textContent=r.toFixed(1)+'×';if(typeof renderLenses==='function'&&stream)renderLenses()}
 function applyZoom(){if(zHW){clearTimeout(zT);zT=setTimeout(()=>{try{stream?.getVideoTracks()[0].applyConstraints({advanced:[{zoom:Z}]}).catch(()=>{})}catch{}},30)}updateZoomBadge()}
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){if(recording)stopRec();if(screenName==='cam'){cancelAnimationFrame(raf);stopCam()}}
@@ -1259,13 +1274,13 @@ $('#bGrid').onclick=async()=>{gridMode=(gridMode+1)%3;if(gridMode===2)await enab
 const optSave=()=>{try{localStorage.setItem('grana.opt',JSON.stringify(OPT))}catch{}};
 function paintLensSeg(){
   const row=$('#lensRow'),seg=$('#lensSeg'),note=$('#lensNote');seg.innerHTML='';
-  const ok=lenses.length>1&&facing!=='user';row.hidden=!ok;
+  row.hidden=facing==='user';
   note.textContent=facing==='user'?'Con la fotocamera frontale non ci sono altri obiettivi.':'Fotocamere rilevate: '+(rawLabels.join(' · ')||'nessuna');
-  if(!ok)return;const cur=stream&&stream.getVideoTracks()[0]?stream.getVideoTracks()[0].getSettings().deviceId:null;
-  lenses.forEach(p=>{const b=document.createElement('button');b.textContent=p.label;b.className=!p.z&&p.id===cur?'on':'';b.onclick=()=>pickLens(p);seg.appendChild(b)})}
+  if(facing==='user')return;const P=lensPills(),act=activePill(P);
+  P.forEach(p=>{const b=document.createElement('button');b.textContent=p.label;b.className=(p.key===act?'on':'')+(p.missing?' dim':'');b.onclick=()=>pickLens(p);seg.appendChild(b)})}
 function paintSheet(){paintLensSeg();$$('#sheet .seg').forEach(sg=>{const k=sg.dataset.k;$$('button',sg).forEach(b=>{const v=k==='roll'?(roll.on?'on':'off'):k==='hq'?(OPT.hq?'1':'0'):OPT[k];b.classList.toggle('on',b.dataset.v===String(v))})})}
 $$('#sheet .seg button').forEach(b=>b.onclick=()=>{const k=b.parentElement.dataset.k,v=b.dataset.v;
-  if(k==='roll'){roll.on=v==='on';saveRoll();paintRoll()}else if(k==='hq')OPT.hq=v==='1';else OPT[k]=v;optSave();paintSheet()});
+  if(k==='roll'){roll.on=v==='on';saveRoll();paintRoll()}else if(k==='hq')OPT.hq=v==='1';else OPT[k]=v;optSave();pillKey='';renderLenses();paintSheet()});
 $('#shNew').onclick=()=>{roll={id:uid(),n:0,on:true};saveRoll();paintRoll();paintSheet();toast('Nuovo rullino da 24 pose')};
 $('#bRoll').onclick=()=>{paintSheet();$('#sheet').hidden=false};
 $('#shClose').onclick=()=>{$('#sheet').hidden=true};
