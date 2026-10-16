@@ -189,7 +189,6 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
     <button class="ib" id="bTimer" aria-label="Timer"></button>
     <button class="ib" id="bDate" aria-label="Data impressa"><span class="tx">’26</span></button>
     <button class="ib" id="bGrid" aria-label="Griglia e livella"></button>
-    <button class="ib" id="bNative" aria-label="Fotocamera iPhone a piena risoluzione"></button>
     <span class="sp"></span>
     <button class="ib" id="bRoll" aria-label="Rullino da 24 pose">24</button>
   </div>
@@ -257,10 +256,12 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
   <button class="ghost" id="shNew">Nuovo rullino</button>
   <div class="srow"><span>Sviluppo delle foto</span><div class="seg" data-k="dev"><button data-v="now">Subito</button><button data-v="1m">1 min</button><button data-v="1h">1 ora</button><button data-v="am">Domani 9:00</button></div></div>
   <p class="note">Come una usa e getta: la foto resta “in sviluppo” nel Rullino e si rivela solo dopo l’attesa. Scegli 1 min per provare.</p>
+  <div class="srow" id="lensRow"><span>Obiettivo</span><div class="seg" id="lensSeg"></div></div>
+  <p class="note" id="lensNote"></p>
   <div class="srow"><span>Qualità foto</span><div class="seg" data-k="hq"><button data-v="1">Massima</button><button data-v="0">Veloce</button></div></div>
   <p class="note">Massima chiede al sensore la risoluzione più alta che il browser permette: circa 12 MP su iPhone, fino a 50 MP su molti Android. Dopo lo scatto serve circa un secondo.</p>
-  <button class="pill" id="shNative">Scatta con la fotocamera iPhone</button>
-  <p class="note">Per i 48 MP: in Impostazioni › Fotocamera › Formati attiva HEIF Max, poi scatta da qui. La foto arriva in Grana per filtri e cornici.</p>
+  <button class="ghost" id="shNative">Apri la fotocamera di sistema</button>
+  <p class="note">Solo per i 48 MP: usa l’app Fotocamera di iOS (senza filtro in anteprima) e la foto arriva qui per filtri e cornici. In Impostazioni › Fotocamera › Formati attiva HEIF Max.</p>
   <p class="note">Gesti: pizzica per lo zoom, tieni premuto lo scatto per la raffica. Video massimo 20 secondi.</p>
 </div></div>
 <div id="toast" hidden></div>
@@ -826,20 +827,30 @@ async function startCam(keepZ){
   if(zHW)tr.applyConstraints({advanced:[{zoom:Z}]}).catch(()=>{});updateZoomBadge();
   await listLenses();renderLenses();
 }
+let rawLabels=[];
+function classifyLenses(devs,zoomHW){
+  const rows=devs.map(x=>{const l=(x.label||'').toLowerCase();
+    return{id:x.deviceId,
+      front:/front|anterior|selfie|facetime|frontale|user/.test(l),
+      virt:/dual|triple|quad|doppi|tripl|quadrupl|virtual/.test(l),
+      k:/ultra/.test(l)&&!/tele/.test(l)?0:/tele/.test(l)?2:1}}).filter(x=>!x.front);
+  let L=rows.filter(x=>!x.virt);if(!L.length)L=rows;
+  L.sort((a,b)=>a.k-b.k);
+  const seen={},out=[];
+  L.slice(0,5).forEach(x=>{const dup=seen[x.k];seen[x.k]=true;out.push({id:x.id,k:x.k,label:dup?'Cam '+(out.length+1):['0,5×','1×','Tele'][x.k]})});
+  const res=out.map(({id,label})=>({id,label})),main=out.find(x=>x.k===1);
+  if(main&&!zoomHW)res.splice(res.findIndex(x=>x.id===main.id)+1,0,{id:main.id,label:'2×',z:2});
+  return res;
+}
 async function listLenses(){
-  lenses=[];if(facing==='user')return;
+  lenses=[];rawLabels=[];if(facing==='user')return;
   try{
-    const d=(await navigator.mediaDevices.enumerateDevices()).filter(x=>x.kind==='videoinput').map(x=>{const l=(x.label||'').toLowerCase();
-      return{id:x.deviceId,l,front:/front|anterior|selfie|facetime|user/.test(l),virt:/dual|triple|quad/.test(l),k:/ultra/.test(l)?0:/tele/.test(l)?2:1}}).filter(x=>!x.front);
-    let L=d.filter(x=>!x.virt);if(!L.length)L=d;
-    const generic=L.length>1&&L.every(x=>x.k===1);
-    if(generic)L=L.slice(0,4).map((x,i)=>({...x,label:'Cam '+(i+1)}));
-    else{const seen=new Set();L=L.filter(x=>seen.has(x.k)?false:(seen.add(x.k),true)).sort((a,b)=>a.k-b.k).map(x=>({...x,label:['0,5×','1×','Tele'][x.k]}))}
-    lenses=L.map(x=>({id:x.id,label:x.label}));
-    const main=L.find(x=>x.k===1);
-    if(!generic&&main&&!zHW)lenses.splice(lenses.findIndex(x=>x.id===main.id)+1,0,{id:main.id,label:'2×',z:2});
+    const devs=(await navigator.mediaDevices.enumerateDevices()).filter(x=>x.kind==='videoinput');
+    rawLabels=devs.map(x=>x.label||'?');
+    lenses=classifyLenses(devs,zHW);
   }catch{}
 }
+async function pickLens(p){lensId=p.id;$('#sheet').hidden=true;await startCam(p.z||1)}
 function renderLenses(){
   const bar=$('#lensBar');if(lenses.length<2||facing==='user'){bar.hidden=true;return}
   const cur=stream&&stream.getVideoTracks()[0]&&stream.getVideoTracks()[0].getSettings?stream.getVideoTracks()[0].getSettings().deviceId:null;
@@ -847,7 +858,7 @@ function renderLenses(){
   bar.innerHTML='';bar.hidden=false;
   lenses.forEach(p=>{const b=document.createElement('button');b.textContent=p.label;
     b.className=(p.z?zoomed&&p.id===cur:p.id===cur&&!zoomed)?'on':'';
-    b.onclick=async()=>{lensId=p.id;await startCam(p.z||1)};bar.appendChild(b)});
+    b.onclick=()=>pickLens(p);bar.appendChild(b)});
 }
 function stopCam(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}vid.srcObject=null}
 function camLoop(now){
@@ -1215,7 +1226,7 @@ async function exportVideo(){
 }
 
 /* ---------------- Wiring ---------------- */
-$('#bTorch').innerHTML=ic('bolt');$('#bTimer').innerHTML=ic('timer')+'';$('#bFlip').innerHTML=ic('flip');$('#galBack').innerHTML=ic('back');$('#bNative').innerHTML=ic('native');$('#edBack').innerHTML=ic('back');$('#impIc').innerHTML=ic('plus');
+$('#bTorch').innerHTML=ic('bolt');$('#bTimer').innerHTML=ic('timer')+'';$('#bFlip').innerHTML=ic('flip');$('#galBack').innerHTML=ic('back');$('#edBack').innerHTML=ic('back');$('#impIc').innerHTML=ic('plus');
 function paintTimer(){const b=$('#bTimer');b.classList.toggle('on',timerSec>0);b.innerHTML=ic('timer')+(timerSec?`<small style="position:absolute;margin:18px 0 0 22px">${timerSec}</small>`:'');b.style.position='relative'}
 function paintDate(){$('#bDate').classList.toggle('on',CS.date)}
 $('#bTimer').onclick=()=>{timerSec=timerSec===0?3:timerSec===3?10:0;paintTimer();saveCS()};
@@ -1246,7 +1257,13 @@ async function enableLevel(){try{if(typeof DeviceOrientationEvent!=='undefined'&
   window.removeEventListener('deviceorientation',onTilt);window.addEventListener('deviceorientation',onTilt)}catch{gridMode=1}}
 $('#bGrid').onclick=async()=>{gridMode=(gridMode+1)%3;if(gridMode===2)await enableLevel();paintGrid()};
 const optSave=()=>{try{localStorage.setItem('grana.opt',JSON.stringify(OPT))}catch{}};
-function paintSheet(){$$('#sheet .seg').forEach(sg=>{const k=sg.dataset.k;$$('button',sg).forEach(b=>{const v=k==='roll'?(roll.on?'on':'off'):k==='hq'?(OPT.hq?'1':'0'):OPT[k];b.classList.toggle('on',b.dataset.v===String(v))})})}
+function paintLensSeg(){
+  const row=$('#lensRow'),seg=$('#lensSeg'),note=$('#lensNote');seg.innerHTML='';
+  const ok=lenses.length>1&&facing!=='user';row.hidden=!ok;
+  note.textContent=facing==='user'?'Con la fotocamera frontale non ci sono altri obiettivi.':'Fotocamere rilevate: '+(rawLabels.join(' · ')||'nessuna');
+  if(!ok)return;const cur=stream&&stream.getVideoTracks()[0]?stream.getVideoTracks()[0].getSettings().deviceId:null;
+  lenses.forEach(p=>{const b=document.createElement('button');b.textContent=p.label;b.className=!p.z&&p.id===cur?'on':'';b.onclick=()=>pickLens(p);seg.appendChild(b)})}
+function paintSheet(){paintLensSeg();$$('#sheet .seg').forEach(sg=>{const k=sg.dataset.k;$$('button',sg).forEach(b=>{const v=k==='roll'?(roll.on?'on':'off'):k==='hq'?(OPT.hq?'1':'0'):OPT[k];b.classList.toggle('on',b.dataset.v===String(v))})})}
 $$('#sheet .seg button').forEach(b=>b.onclick=()=>{const k=b.parentElement.dataset.k,v=b.dataset.v;
   if(k==='roll'){roll.on=v==='on';saveRoll();paintRoll()}else if(k==='hq')OPT.hq=v==='1';else OPT[k]=v;optSave();paintSheet()});
 $('#shNew').onclick=()=>{roll={id:uid(),n:0,on:true};saveRoll();paintRoll();paintSheet();toast('Nuovo rullino da 24 pose')};
@@ -1254,7 +1271,7 @@ $('#bRoll').onclick=()=>{paintSheet();$('#sheet').hidden=false};
 $('#shClose').onclick=()=>{$('#sheet').hidden=true};
 $('#sheet').onclick=e=>{if(e.target.id==='sheet')e.target.hidden=true};
 const openNative=()=>{$('#sheet').hidden=true;$('#nat').click()};
-$('#bNative').onclick=openNative;$('#shNative').onclick=openNative;
+$('#shNative').onclick=openNative;
 $('#nat').onchange=async e=>{const fs=[...e.target.files];e.target.value='';if(!fs.length)return;await importFiles(fs);if(ITEMS[0])openEd(ITEMS[0].id)};
 $('#dblPick').onclick=()=>{
   galPick=async it=>{endPick();try{const raw=await DB.raw(it.id),bm=await decode(raw),c=document.createElement('canvas');c.width=bm.width;c.height=bm.height;
