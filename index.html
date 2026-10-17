@@ -1014,6 +1014,7 @@ let lensId=null,lenses=[],capturing=false,camClass='photo',camLow=false,guardTok
 const newSettings=(preset='pastel')=>({preset,i:1,s:{...PBY[preset].s},frame:'none',date:false,dateStr:'',seed:Math.random()*100,leakAng:Math.random()*6.28,dbl:{mode:0,mix:.8,flip:0},style:defStyle()});
 let CS=newSettings();
 try{const sv=JSON.parse(localStorage.getItem('grana.cs')||'null');if(sv&&PBY[sv.preset]){CS=Object.assign(newSettings(sv.preset),{i:1,s:{...PBY[sv.preset].s,...sv.s},date:!!sv.date,dbl:{mode:0,mix:.8,flip:0,...(sv.dbl||{}),flip:0},style:{...defStyle(),...(sv.style||{})}});timerSec=sv.timer||0}}catch{}
+if(CS.preset!=='orig'&&styleActive(CS.style))CS.style=defStyle();     // older saved state could hold both
 const saveCS=()=>{try{localStorage.setItem('grana.cs',JSON.stringify({preset:CS.preset,i:CS.i,s:CS.s,date:CS.date,timer:timerSec,dbl:{mode:CS.dbl.mode,mix:CS.dbl.mix},style:CS.style}))}catch{}};
 const dateNow=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return`'${p(d.getFullYear()%100)} ${p(d.getMonth()+1)} ${p(d.getDate())}`};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -1276,16 +1277,21 @@ function buildStylePanel(box,get,apply,opt={}){
   sync(true);return{sync,step};
 }
 let STY=null;
+function setCamStyle(v){                       // a style replaces the filter: the two are never combined
+  CS.style=v;
+  if(styleActive(v)&&CS.preset!=='orig'){CS.preset='orig';CS.s={...PBY.orig.s};if(CAR)CAR.set(0,true)}
+  saveCS();paintStyleBtn();
+}
 let styleOpen=false;
 function paintStyleBtn(){const act=styleActive(CS.style);$('#bStyle').classList.toggle('on',act&&!styleOpen);
   $('#styTx').textContent=styleOpen?'Filtri':(act?SBY[CS.style.id].n:'Stile');$('#styIc').innerHTML=ic(styleOpen?'gal':'styles')}
 function toggleStyle(){
   styleOpen=!styleOpen;$('#rail .car').hidden=styleOpen;$('#rail .carFoot').hidden=styleOpen;$('#stylePanel').hidden=!styleOpen;
-  STY=styleOpen?buildStylePanel($('#stylePanel'),()=>CS.style,v=>{CS.style=v;saveCS();paintStyleBtn()},{compact:true,onClose:toggleStyle}):null;
+  STY=styleOpen?buildStylePanel($('#stylePanel'),()=>CS.style,setCamStyle,{compact:true,onClose:toggleStyle}):null;
   paintStyleBtn();
 }
 function renderRail(){
-  if(!CAR)CAR=makeCarousel($('#chips'),P=>{CS.preset=P.id;CS.s={...P.s};saveCS()},$('#carLbl'),()=>CS.style);
+  if(!CAR)CAR=makeCarousel($('#chips'),P=>{CS.preset=P.id;CS.s={...P.s};if(P.id!=='orig'&&styleActive(CS.style)){CS.style=defStyle();paintStyleBtn()}saveCS()},$('#carLbl'));
   CAR.set(Math.max(0,PRESETS.findIndex(p=>p.id===CS.preset)),true);
   const pb=$('#bPick'),on=mode!=='photo';pb.hidden=!on;
   if(on){$('#pickTx').textContent=mode==='double'?'Miscela':'Cornice';$('#pickIc').innerHTML=ic('frame')}
@@ -1446,7 +1452,7 @@ async function importFiles(files){
       const isV=f.type.startsWith('video/');let w,h,dur;
       if(isV){const v=document.createElement('video');v.muted=true;v.playsInline=true;v.src=URL.createObjectURL(f);await new Promise((r,j)=>{v.onloadedmetadata=r;v.onerror=j});w=v.videoWidth;h=v.videoHeight;dur=v.duration;URL.revokeObjectURL(v.src)}
       else{const bm=await decode(f);w=bm.width;h=bm.height;bm.close?.()}
-      const st=newSettings(CS.preset);st.s={...CS.s};st.i=CS.i;st.dateStr=dateNow();
+      const st=newSettings(CS.preset);st.s={...CS.s};st.i=CS.i;st.style={...CS.style};st.dateStr=dateNow();
       const item={id:uid(),type:isV?'video':'photo',created:Date.now(),w,h,mirror:false,duration:isV?(isFinite(dur)?dur:0):undefined,n:ITEMS.length+1,settings:st,imported:true};
       const c=document.createElement('canvas');
       if(isV){const v=document.createElement('video');v.muted=true;v.playsInline=true;v.src=URL.createObjectURL(f);await new Promise(r=>{v.onloadeddata=r});try{v.currentTime=.1;await new Promise(r=>{v.onseeked=r;setTimeout(r,800)})}catch{};
@@ -1609,7 +1615,7 @@ function renderPanel(){
     p.appendChild(sliderRow('Intensità',0,1,.01,st.i,v=>{st.i=v;edChange()}));
     const car=document.createElement('div');car.className='car';const box=document.createElement('div');box.id='edChips';car.appendChild(box);
     const lbl=document.createElement('div');lbl.className='carLbl';lbl.style.padding='0 0 8px';p.append(car,lbl);
-    const cr=makeCarousel(box,P=>{st.preset=P.id;st.s={...P.s};edChange()},lbl,()=>st.style);ED.car=cr;
+    const cr=makeCarousel(box,P=>{st.preset=P.id;st.s={...P.s};if(P.id!=='orig'&&styleActive(st.style))st.style=defStyle();edChange()},lbl);ED.car=cr;
     requestAnimationFrame(()=>{if(ED&&ED.car===cr){cr.set(Math.max(0,PRESETS.findIndex(x=>x.id===st.preset)),true);const sq=edSquare(104);if(sq)cr.thumbs(sq)}});
   }else if(ED.tab==='adj'){
     p.appendChild(sliderRow('Intensità',0,1,.01,st.i,v=>{st.i=v;edChange()}));
@@ -1622,7 +1628,7 @@ function renderPanel(){
       await DB.del(ED.item.id);ITEMS=ITEMS.filter(i=>i.id!==ED.item.id);closeEd(true)};
   }else if(ED.tab==='style'){
     const box=document.createElement('div');box.className='stylePanel';p.appendChild(box);
-    buildStylePanel(box,()=>st.style,v=>{st.style=v;edChange()});
+    buildStylePanel(box,()=>st.style,v=>{st.style=v;if(styleActive(v)&&st.preset!=='orig'){st.preset='orig';st.s={...PBY.orig.s}}edChange()});
   }else if(ED.tab==='blend'){
     p.appendChild(sliderRow('Mix seconda esposizione',0,1,.01,st.dbl.mix,v=>{st.dbl.mix=v;edChange()}));
     const box=edGridBox(p);
