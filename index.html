@@ -257,6 +257,15 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 #bPick.on,#bStyle.on{border-color:var(--acc);color:var(--acc)}
 .styBtn{justify-self:start!important}
 .stylePanel{display:flex;flex-direction:column;align-items:center;gap:10px;padding:2px 0 2px;--pa:#aab;--pb:#eca}
+#rail .stylePanel{gap:4px;padding-top:0}
+.stHead{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:36px}
+.stHead .nm{flex:1;text-align:center;font:600 12px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink);white-space:nowrap}
+.stHead button{width:38px;height:36px;display:grid;place-items:center;color:var(--ink)}
+.stHead button svg{width:20px;height:20px}
+.stDots{display:flex;justify-content:center;align-items:center}
+.stDots button{width:18px;height:18px;display:grid;place-items:center}
+.stDots button::after{content:"";width:6px;height:6px;border-radius:50%;background:#5a5242;transition:background .15s,transform .15s}
+.stDots button.on::after{background:var(--ink);transform:scale(1.35)}
 .styRead{display:flex;align-items:center;gap:14px;padding:6px 8px 6px 16px;border-radius:99px;background:var(--panel);border:1px solid var(--line);font:600 10.5px var(--mono);letter-spacing:.1em;color:var(--dim);text-transform:uppercase}
 .styRead b{color:var(--ink);font-weight:700;margin-left:6px;font-size:13px;letter-spacing:0}
 .styRead button{display:grid;place-items:center;width:30px;height:30px;color:var(--ink)}
@@ -423,6 +432,7 @@ const IC={
   collage:'<rect x="3.5" y="3.5" width="7" height="17" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7.5" rx="1.5"/><rect x="13.5" y="13" width="7" height="7.5" rx="1.5"/>',
   styles:'<rect x="4" y="4" width="16" height="16" rx="5"/><circle cx="14.5" cy="9.5" r="2.3"/>',
   reset:'<path d="M4.5 12a7.5 7.5 0 1 0 2.4-5.5M4.5 4.5v4h4"/>',
+  close:'<path d="M6 6l12 12M18 6 6 18"/>',
   info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.1"/>'
 };
 const ic=(n)=>`<svg viewBox="0 0 24 24" width="22" height="22">${IC[n]}</svg>`;
@@ -1221,43 +1231,57 @@ function squareSrc(el,sw,sh,size,mirror){const c=document.createElement('canvas'
 function lookCanvas(src,st){const out=document.createElement('canvas');out.width=src.width;out.height=src.height;const x=out.getContext('2d');
   if(GLR&&GLR.draw(src,src.width,src.height,{...st,frame:'none',texts:[]},0,false,{})!==false)x.drawImage(GLR.canvas,0,0);else x.drawImage(src,0,0);return out}
 function camSquare(size){if(!vid.videoWidth)return null;return squareSrc(vid,vid.videoWidth,vid.videoHeight,size,facing==='user')}
-function buildStylePanel(box,get,apply){
-  box.innerHTML='';
+function buildStylePanel(box,get,apply,opt={}){
+  box.innerHTML='';const compact=!!opt.compact;
   const mk=h=>{const d=document.createElement('div');d.innerHTML=h;return d.firstElementChild};
-  const ro=mk('<div class="styRead"><span>Tono<b class="vT"></b></span><span>Colore<b class="vC"></b></span><span>Palette<b class="vP"></b></span><button type="button" aria-label="Ripristina lo stile"></button></div>');
-  const chips=mk('<div class="styChips"></div>');
-  STYLES.forEach(D=>{const b=document.createElement('button');b.type='button';b.textContent=D.n;b.dataset.id=D.id;b.onclick=()=>{apply(styleDefaults(D.id));sync(true)};chips.appendChild(b)});
+  let ro,chips,head,dots,resetB;
+  if(compact){
+    head=mk('<div class="stHead"><button type="button" class="rs" aria-label="Ripristina lo stile"></button><div class="nm"></div><button type="button" class="cl" aria-label="Chiudi"></button></div>');
+    dots=mk('<div class="stDots"></div>');
+    STYLES.forEach(D=>{const b=document.createElement('button');b.type='button';b.setAttribute('aria-label',D.n);b.onclick=()=>{apply(styleDefaults(D.id));touching=0;sync()};dots.appendChild(b)});
+    resetB=$('.rs',head);$('.cl',head).innerHTML=ic('close');$('.cl',head).onclick=()=>opt.onClose&&opt.onClose();
+  }else{
+    ro=mk('<div class="styRead"><span>Tono<b class="vT"></b></span><span>Colore<b class="vC"></b></span><span>Palette<b class="vP"></b></span><button type="button" aria-label="Ripristina lo stile"></button></div>');
+    chips=mk('<div class="styChips"></div>');
+    STYLES.forEach(D=>{const b=document.createElement('button');b.type='button';b.textContent=D.n;b.dataset.id=D.id;b.onclick=()=>{apply(styleDefaults(D.id));sync(true)};chips.appendChild(b)});
+    resetB=$('button',ro);
+  }
   const pad=mk('<div class="stPad" role="slider" aria-label="Tono e colore"><i class="dflt"></i><i class="thumb"></i></div>');
   const rng=mk('<input type="range" class="stRange" min="0" max="100" step="1" aria-label="Palette">');
-  box.append(ro,chips,pad,rng);
-  const reset=$('button',ro);reset.innerHTML=ic('reset');
+  box.append(...(compact?[head,dots,pad,rng]:[ro,chips,pad,rng]));
+  resetB.innerHTML=ic('reset');
+  let touching=0,tmr=0;
+  const info=txt=>{if(!compact)return;touching=1;$('.nm',head).textContent=txt;clearTimeout(tmr);tmr=setTimeout(()=>{touching=0;sync()},900)};
   function fromPointer(e){
     const r=pad.getBoundingClientRect(),s=get(),D=SBY[s.id];
     let x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),y=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
     const dx=.5+D.col/200,dy=.5-D.tone/200;if(Math.hypot(x-dx,y-dy)<.05){x=dx;y=dy}       // detent on the style's own default
-    apply({...s,col:Math.round((x-.5)*200),tone:Math.round((.5-y)*200)});sync();
+    const v={...s,col:Math.round((x-.5)*200),tone:Math.round((.5-y)*200)};apply(v);sync();info(`Tono ${v.tone} · Colore ${v.col}`);
   }
   let drag=false;
   pad.addEventListener('pointerdown',e=>{try{pad.setPointerCapture(e.pointerId)}catch{}drag=true;fromPointer(e)});
   pad.addEventListener('pointermove',e=>{if(drag)fromPointer(e)});
   ['pointerup','pointercancel'].forEach(n=>pad.addEventListener(n,()=>{drag=false}));
-  rng.oninput=()=>{apply({...get(),pal:+rng.value});sync()};
-  reset.onclick=()=>{apply(styleDefaults(get().id));sync()};
+  rng.oninput=()=>{apply({...get(),pal:+rng.value});sync();info('Palette '+rng.value)};
+  resetB.onclick=()=>{apply(styleDefaults(get().id));touching=0;sync()};
   function sync(scroll){
     const s=get(),D=SBY[s.id]||SBY.std;
-    $('.vT',ro).textContent=s.tone;$('.vC',ro).textContent=s.col;$('.vP',ro).textContent=s.pal;
     const th=$('.thumb',pad),df=$('.dflt',pad);th.style.left=(50+s.col/2)+'%';th.style.top=(50-s.tone/2)+'%';df.style.left=(50+D.col/2)+'%';df.style.top=(50-D.tone/2)+'%';
     rng.value=s.pal;const[ta,tb]=styleTints(D);box.style.setProperty('--pa',ta);box.style.setProperty('--pb',tb);
-    [...chips.children].forEach(c=>{const on=c.dataset.id===s.id;c.classList.toggle('on',on);if(on&&scroll)requestAnimationFrame(()=>keepVisible(chips,c))});
+    if(compact){if(!touching)$('.nm',head).textContent=D.n;[...dots.children].forEach((b,i)=>b.classList.toggle('on',STYLES[i].id===s.id))}
+    else{$('.vT',ro).textContent=s.tone;$('.vC',ro).textContent=s.col;$('.vP',ro).textContent=s.pal;
+      [...chips.children].forEach(c=>{const on=c.dataset.id===s.id;c.classList.toggle('on',on);if(on&&scroll)requestAnimationFrame(()=>keepVisible(chips,c))})}
   }
-  sync(true);
+  const step=d=>{const s=get(),i=STYLES.findIndex(x=>x.id===s.id),n=Math.max(0,Math.min(STYLES.length-1,i+d));if(n===i)return;apply(styleDefaults(STYLES[n].id));touching=0;sync(true)};
+  sync(true);return{sync,step};
 }
+let STY=null;
 let styleOpen=false;
 function paintStyleBtn(){const act=styleActive(CS.style);$('#bStyle').classList.toggle('on',act&&!styleOpen);
   $('#styTx').textContent=styleOpen?'Filtri':(act?SBY[CS.style.id].n:'Stile');$('#styIc').innerHTML=ic(styleOpen?'gal':'styles')}
 function toggleStyle(){
-  styleOpen=!styleOpen;$('#rail .car').hidden=styleOpen;$('#carLbl').style.visibility=styleOpen?'hidden':'visible';$('#stylePanel').hidden=!styleOpen;
-  if(styleOpen)buildStylePanel($('#stylePanel'),()=>CS.style,v=>{CS.style=v;saveCS();paintStyleBtn()});
+  styleOpen=!styleOpen;$('#rail .car').hidden=styleOpen;$('#rail .carFoot').hidden=styleOpen;$('#stylePanel').hidden=!styleOpen;
+  STY=styleOpen?buildStylePanel($('#stylePanel'),()=>CS.style,v=>{CS.style=v;saveCS();paintStyleBtn()},{compact:true,onClose:toggleStyle}):null;
   paintStyleBtn();
 }
 function renderRail(){
@@ -1806,6 +1830,11 @@ $('#bDate').onclick=()=>{CS.date=!CS.date;paintDate();saveCS()};
 $('#bTorch').onclick=async()=>{if(!stream)return;torchOn=!torchOn;try{await stream.getVideoTracks()[0].applyConstraints({advanced:[{torch:torchOn}]});$('#bTorch').classList.toggle('on',torchOn)}catch{torchOn=false}};
 $('#bFlip').onclick=()=>{if(recording)return;facing=facing==='user'?'environment':'user';lensId=null;startCam()};
 $('#bStyle').onclick=toggleStyle;
+{const stg=$('#cam .stage');let sw=null;
+  stg.addEventListener('pointerdown',e=>{if(!styleOpen){sw=null;return}if(e.isPrimary)sw={x:e.clientX,y:e.clientY,t:performance.now(),multi:false};else if(sw)sw.multi=true});
+  stg.addEventListener('pointerup',e=>{const g=sw;if(!g||!e.isPrimary)return;sw=null;if(g.multi||!STY)return;
+    const dx=e.clientX-g.x,dy=e.clientY-g.y;if(Math.abs(dx)>55&&Math.abs(dy)<50)STY.step(dx<0?1:-1)});
+  stg.addEventListener('pointercancel',()=>{sw=null})}
 $('#bPick').onclick=()=>{
   if(mode==='double'){openBlendPicker();return}
   openFramePicker({cur:FR[mode],list:frameListFor(mode),src:camSquare(200),st:CS,onPick:id=>{FR[mode]=id}})};
