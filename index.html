@@ -106,7 +106,7 @@ svg{display:block;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:
 .modes button{padding:5px 14px;font:600 11px var(--mono);letter-spacing:.18em;color:var(--dim)}
 .modes button.on{color:var(--acc)}
 .shutrow{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:92px;flex:none}
-.shutrow > :first-child{justify-self:start}.shutrow > :last-child{justify-self:end}
+.shutrow #bGal{justify-self:start}.shutrow #bFlip{justify-self:end}
 #bGal{width:54px;height:54px;border-radius:9px;border:1.5px solid var(--line);overflow:hidden;background:var(--panel);display:grid;place-items:center;color:var(--dim)}
 #bGal img{width:100%;height:100%;object-fit:cover;display:block}
 #shut{width:76px;height:76px;border-radius:50%;border:4px solid var(--ink);display:grid;place-items:center}
@@ -284,6 +284,27 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 .stylePanel input[type=range].stRange::-moz-range-track{height:30px;background:transparent}
 .stylePanel input[type=range].stRange::-moz-range-thumb{width:30px;height:30px;border-radius:50%;background:#fff;border:0}
 #edPanel .stylePanel{padding-top:6px}
+#styTop,#styOv,#styClose,#cam #stylePanel{display:none}
+#cam.styling #rail,#cam.styling #modes,#cam.styling #bGal,#cam.styling #bFlip,#cam.styling #lensBar,#cam.styling #zoomBadge,#cam.styling #bTorch,#cam.styling #bTimer,#cam.styling #bDate,#cam.styling #bGrid,#cam.styling #bRoll{display:none!important}
+#cam.styling #styTop{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%}
+#cam.styling #styTop .styRead{flex:1;justify-content:space-between;gap:8px;padding:8px 8px 8px 16px}
+#styGroup{flex:none;width:46px;height:46px;border-radius:14px;background:var(--panel);border:1px solid var(--line);display:grid;place-items:center;color:var(--acc)}
+#styGroup svg{width:24px;height:24px}
+#cam.styling .shutrow{grid-template-columns:64px 1fr 86px;height:168px}
+#cam.styling #styClose{display:grid;order:1;justify-self:start;width:54px;height:54px;border-radius:50%;place-items:center;background:var(--panel);border:1px solid var(--line)}
+#cam.styling #styClose svg{width:26px;height:26px}
+#cam.styling #stylePanel{display:flex;order:2;justify-self:center;gap:10px;padding:0}
+#cam.styling #shut{order:3;justify-self:end}
+#stylePanel .stPad{width:106px;height:106px;border-radius:24px}
+#stylePanel input[type=range].stRange{width:178px}
+#cam.styling #styOv{display:block;position:absolute;inset:0;pointer-events:none}
+#styOv .cat,#styOv .nm{padding:6px 14px;border-radius:9px;background:rgba(36,32,26,.74);font:600 12px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:#f4efe4;white-space:nowrap}
+#styOv .cat{position:absolute;top:12px;left:50%;transform:translateX(-50%)}
+#styOv .bot{position:absolute;left:0;right:0;bottom:10px;display:flex;flex-direction:column;align-items:center;gap:6px}
+#styOv .dots{display:flex;pointer-events:auto}
+#styOv .dots button{width:22px;height:22px;display:grid;place-items:center}
+#styOv .dots button::after{content:"";width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.45);transition:transform .15s,background .15s}
+#styOv .dots button.on::after{background:#fff;transform:scale(1.4)}
 #vid,#ev{position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none}
 </style>
 </head>
@@ -300,12 +321,14 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
     <button class="ib" id="bGrid" aria-label="Griglia e livella"></button>
     <span class="sp"></span>
     <button class="ib" id="bRoll" aria-label="Rullino da 24 pose">24</button>
+    <div id="styTop"><div class="styRead"><span>Tono<b id="tT"></b></span><span>Colore<b id="tC"></b></span><span>Palette<b id="tP"></b></span><button type="button" id="styReset" aria-label="Ripristina lo stile"></button></div><button type="button" id="styGroup" aria-label="Cambia gruppo di stili"></button></div>
   </div>
   <div class="stage">
     <canvas id="view"></canvas>
     <div id="count" hidden></div>
     <div id="recbadge" hidden><i></i><span id="rectime">00:00</span></div>
     <div id="flash"></div>
+    <div id="styOv"><span class="cat"></span><div class="bot"><span class="nm"></span><div class="dots"></div></div></div>
     <div id="ovl" hidden><div id="gridL"></div><div id="lvl" hidden><b></b></div></div>
     <div id="lensBar" hidden></div>
     <button id="zoomBadge" hidden aria-label="Azzera zoom"></button>
@@ -314,7 +337,6 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
   </div>
   <div class="rail" id="rail">
     <div class="car"><div class="chips" id="chips" aria-label="Filtri"></div></div>
-    <div class="stylePanel" id="stylePanel" hidden></div>
     <div class="carFoot"><button class="pickBtn styBtn" id="bStyle" aria-label="Stili fotografici"><span id="styIc"></span><span id="styTx">Stile</span></button><div class="carLbl" id="carLbl"></div><button class="pickBtn" id="bPick" aria-label="Scegli cornice" hidden><span id="pickIc"></span><span id="pickTx">Cornice</span></button></div>
   </div>
   <div class="modes" id="modes">
@@ -324,6 +346,8 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
     <button id="bGal" aria-label="Rullino"></button>
     <button id="shut" aria-label="Scatta"><i></i></button>
     <button id="bFlip" aria-label="Cambia fotocamera"></button>
+    <button id="styClose" aria-label="Chiudi gli stili"></button>
+    <div class="stylePanel" id="stylePanel"></div>
   </div>
 </section>
 
@@ -1046,7 +1070,7 @@ let pickReturn='cam';
 function show(name){
   const prev=screenName;screenName=name;
   for(const id of['cam','gal','ed','col'])$('#'+id).hidden=id!==name;
-  if(prev==='cam'&&name!=='cam'){cancelAnimationFrame(raf);stopCam()}
+  if(prev==='cam'&&name!=='cam'){if(styleOpen)closeStyleCam();cancelAnimationFrame(raf);stopCam()}
   if(name==='cam'){startCam();cancelAnimationFrame(raf);raf=requestAnimationFrame(camLoop)}
 }
 
@@ -1232,51 +1256,45 @@ function squareSrc(el,sw,sh,size,mirror){const c=document.createElement('canvas'
 function lookCanvas(src,st){const out=document.createElement('canvas');out.width=src.width;out.height=src.height;const x=out.getContext('2d');
   if(GLR&&GLR.draw(src,src.width,src.height,{...st,frame:'none',texts:[]},0,false,{})!==false)x.drawImage(GLR.canvas,0,0);else x.drawImage(src,0,0);return out}
 function camSquare(size){if(!vid.videoWidth)return null;return squareSrc(vid,vid.videoWidth,vid.videoHeight,size,facing==='user')}
-function buildStylePanel(box,get,apply,opt={}){
-  box.innerHTML='';const compact=!!opt.compact;
+function buildStyleControls(box,get,apply,after){
   const mk=h=>{const d=document.createElement('div');d.innerHTML=h;return d.firstElementChild};
-  let ro,chips,head,dots,resetB;
-  if(compact){
-    head=mk('<div class="stHead"><button type="button" class="rs" aria-label="Ripristina lo stile"></button><div class="nm"></div><button type="button" class="cl" aria-label="Chiudi"></button></div>');
-    dots=mk('<div class="stDots"></div>');
-    STYLES.forEach(D=>{const b=document.createElement('button');b.type='button';b.setAttribute('aria-label',D.n);b.onclick=()=>{apply(styleDefaults(D.id));touching=0;sync()};dots.appendChild(b)});
-    resetB=$('.rs',head);$('.cl',head).innerHTML=ic('close');$('.cl',head).onclick=()=>opt.onClose&&opt.onClose();
-  }else{
-    ro=mk('<div class="styRead"><span>Tono<b class="vT"></b></span><span>Colore<b class="vC"></b></span><span>Palette<b class="vP"></b></span><button type="button" aria-label="Ripristina lo stile"></button></div>');
-    chips=mk('<div class="styChips"></div>');
-    STYLES.forEach(D=>{const b=document.createElement('button');b.type='button';b.textContent=D.n;b.dataset.id=D.id;b.onclick=()=>{apply(styleDefaults(D.id));sync(true)};chips.appendChild(b)});
-    resetB=$('button',ro);
-  }
   const pad=mk('<div class="stPad" role="slider" aria-label="Tono e colore"><i class="dflt"></i><i class="thumb"></i></div>');
   const rng=mk('<input type="range" class="stRange" min="0" max="100" step="1" aria-label="Palette">');
-  box.append(...(compact?[head,dots,pad,rng]:[ro,chips,pad,rng]));
-  resetB.innerHTML=ic('reset');
-  let touching=0,tmr=0;
-  const info=txt=>{if(!compact)return;touching=1;$('.nm',head).textContent=txt;clearTimeout(tmr);tmr=setTimeout(()=>{touching=0;sync()},900)};
+  box.append(pad,rng);
+  function sync(){
+    const s=get(),D=SBY[s.id]||SBY.std;
+    const th=$('.thumb',pad),df=$('.dflt',pad);th.style.left=(50+s.col/2)+'%';th.style.top=(50-s.tone/2)+'%';df.style.left=(50+D.col/2)+'%';df.style.top=(50-D.tone/2)+'%';
+    rng.value=s.pal;const[ta,tb]=styleTints(D);box.style.setProperty('--pa',ta);box.style.setProperty('--pb',tb);
+  }
   function fromPointer(e){
     const r=pad.getBoundingClientRect(),s=get(),D=SBY[s.id];
     let x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),y=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
     const dx=.5+D.col/200,dy=.5-D.tone/200;if(Math.hypot(x-dx,y-dy)<.05){x=dx;y=dy}       // detent on the style's own default
-    const v={...s,col:Math.round((x-.5)*200),tone:Math.round((.5-y)*200)};apply(v);sync();info(`Tono ${v.tone} · Colore ${v.col}`);
+    apply({...s,col:Math.round((x-.5)*200),tone:Math.round((.5-y)*200)});sync();after&&after();
   }
   let drag=false;
   pad.addEventListener('pointerdown',e=>{try{pad.setPointerCapture(e.pointerId)}catch{}drag=true;fromPointer(e)});
   pad.addEventListener('pointermove',e=>{if(drag)fromPointer(e)});
   ['pointerup','pointercancel'].forEach(n=>pad.addEventListener(n,()=>{drag=false}));
-  rng.oninput=()=>{apply({...get(),pal:+rng.value});sync();info('Palette '+rng.value)};
-  resetB.onclick=()=>{apply(styleDefaults(get().id));touching=0;sync()};
-  function sync(scroll){
-    const s=get(),D=SBY[s.id]||SBY.std;
-    const th=$('.thumb',pad),df=$('.dflt',pad);th.style.left=(50+s.col/2)+'%';th.style.top=(50-s.tone/2)+'%';df.style.left=(50+D.col/2)+'%';df.style.top=(50-D.tone/2)+'%';
-    rng.value=s.pal;const[ta,tb]=styleTints(D);box.style.setProperty('--pa',ta);box.style.setProperty('--pb',tb);
-    if(compact){if(!touching)$('.nm',head).textContent=D.n;[...dots.children].forEach((b,i)=>b.classList.toggle('on',STYLES[i].id===s.id))}
-    else{$('.vT',ro).textContent=s.tone;$('.vC',ro).textContent=s.col;$('.vP',ro).textContent=s.pal;
-      [...chips.children].forEach(c=>{const on=c.dataset.id===s.id;c.classList.toggle('on',on);if(on&&scroll)requestAnimationFrame(()=>keepVisible(chips,c))})}
-  }
-  const step=d=>{const s=get(),i=STYLES.findIndex(x=>x.id===s.id),n=Math.max(0,Math.min(STYLES.length-1,i+d));if(n===i)return;apply(styleDefaults(STYLES[n].id));touching=0;sync(true)};
-  sync(true);return{sync,step};
+  rng.oninput=()=>{apply({...get(),pal:+rng.value});sync();after&&after()};
+  sync();return{sync};
 }
-let STY=null;
+// Full controller for the editor: readout, list of styles, pad and slider.
+function buildStylePanel(box,get,apply){
+  box.innerHTML='';
+  const mk=h=>{const d=document.createElement('div');d.innerHTML=h;return d.firstElementChild};
+  const ro=mk('<div class="styRead"><span>Tono<b class="vT"></b></span><span>Colore<b class="vC"></b></span><span>Palette<b class="vP"></b></span><button type="button" aria-label="Ripristina lo stile"></button></div>');
+  const chips=mk('<div class="styChips"></div>');
+  STYLES.forEach(D=>{const b=document.createElement('button');b.type='button';b.textContent=D.n;b.dataset.id=D.id;b.onclick=()=>{apply(styleDefaults(D.id));full(true)};chips.appendChild(b)});
+  box.append(ro,chips);
+  const ctl=buildStyleControls(box,get,apply,()=>full());
+  const reset=$('button',ro);reset.innerHTML=ic('reset');reset.onclick=()=>{apply(styleDefaults(get().id));full()};
+  function full(scroll){
+    const s=get();ctl.sync();$('.vT',ro).textContent=s.tone;$('.vC',ro).textContent=s.col;$('.vP',ro).textContent=s.pal;
+    [...chips.children].forEach(c=>{const on=c.dataset.id===s.id;c.classList.toggle('on',on);if(on&&scroll)requestAnimationFrame(()=>keepVisible(chips,c))});
+  }
+  full(true);
+}
 function setCamStyle(v){                       // a style replaces the filter: the two are never combined
   CS.style=v;
   if(styleActive(v)&&CS.preset!=='orig'){CS.preset='orig';CS.s={...PBY.orig.s};if(CAR)CAR.set(0,true)}
@@ -1284,12 +1302,32 @@ function setCamStyle(v){                       // a style replaces the filter: t
 }
 let styleOpen=false;
 function paintStyleBtn(){const act=styleActive(CS.style);$('#bStyle').classList.toggle('on',act&&!styleOpen);
-  $('#styTx').textContent=styleOpen?'Filtri':(act?SBY[CS.style.id].n:'Stile');$('#styIc').innerHTML=ic(styleOpen?'gal':'styles')}
-function toggleStyle(){
-  styleOpen=!styleOpen;$('#rail .car').hidden=styleOpen;$('#rail .carFoot').hidden=styleOpen;$('#stylePanel').hidden=!styleOpen;
-  STY=styleOpen?buildStylePanel($('#stylePanel'),()=>CS.style,setCamStyle,{compact:true,onClose:toggleStyle}):null;
-  paintStyleBtn();
+  $('#styTx').textContent=act?SBY[CS.style.id].n:'Stile';$('#styIc').innerHTML=ic('styles')}
+const ST_GROUPS=[
+  {n:'Atmosfere',ids:['std','naturale','vivace','luminoso','dramm','quieto','accogl','etereo','bnten','bndec']},
+  {n:'Sfumature',ids:['rosaf','neutro','ambra','orosa','oro']}];
+let stGroup=0,stCtl=null;const stLast=[0,0];
+const groupOf=id=>Math.max(0,ST_GROUPS.findIndex(g=>g.ids.includes(id)));
+function camStyleSync(){
+  const s=CS.style,D=SBY[s.id]||SBY.std,g=ST_GROUPS[stGroup];
+  $('#tT').textContent=s.tone;$('#tC').textContent=s.col;$('#tP').textContent=s.pal;
+  $('#styOv .cat').textContent=g.n;$('#styOv .nm').textContent=D.n;
+  const dots=$('#styOv .dots');
+  if(dots.dataset.g!==String(stGroup)){dots.innerHTML='';dots.dataset.g=String(stGroup);g.ids.forEach(id=>{const b=document.createElement('button');b.type='button';b.setAttribute('aria-label',SBY[id].n);b.onclick=()=>styleSet(id);dots.appendChild(b)})}
+  [...dots.children].forEach((b,i)=>b.classList.toggle('on',g.ids[i]===s.id));
+  if(stCtl)stCtl.sync();
 }
+function styleSet(id){const g=ST_GROUPS[stGroup];stLast[stGroup]=Math.max(0,g.ids.indexOf(id));setCamStyle(styleDefaults(id));camStyleSync()}
+function styleStep(d){const g=ST_GROUPS[stGroup],i=Math.max(0,g.ids.indexOf(CS.style.id)),n=Math.max(0,Math.min(g.ids.length-1,i+d));if(n!==i)styleSet(g.ids[n])}
+function styleGroup(){stLast[stGroup]=Math.max(0,ST_GROUPS[stGroup].ids.indexOf(CS.style.id));stGroup=1-stGroup;styleSet(ST_GROUPS[stGroup].ids[stLast[stGroup]||0])}
+function openStyleCam(){
+  styleOpen=true;stGroup=groupOf(CS.style.id);$('#cam').classList.add('styling');
+  if(CS.preset!=='orig'){CS.preset='orig';CS.s={...PBY.orig.s};if(CAR)CAR.set(0,true);saveCS()}      // styles and filters are alternatives
+  const box=$('#stylePanel');box.innerHTML='';stCtl=buildStyleControls(box,()=>CS.style,v=>{setCamStyle(v);camStyleSync()},null);
+  camStyleSync();paintStyleBtn();
+}
+function closeStyleCam(){styleOpen=false;stCtl=null;$('#cam').classList.remove('styling');$('#stylePanel').innerHTML='';paintStyleBtn()}
+function toggleStyle(){styleOpen?closeStyleCam():openStyleCam()}
 function renderRail(){
   if(!CAR)CAR=makeCarousel($('#chips'),P=>{CS.preset=P.id;CS.s={...P.s};if(P.id!=='orig'&&styleActive(CS.style)){CS.style=defStyle();paintStyleBtn()}saveCS()},$('#carLbl'));
   CAR.set(Math.max(0,PRESETS.findIndex(p=>p.id===CS.preset)),true);
@@ -1828,7 +1866,7 @@ async function exportVideo(){
 }
 
 /* ---------------- Wiring ---------------- */
-$('#bTorch').innerHTML=ic('bolt');$('#bTimer').innerHTML=ic('timer')+'';$('#bFlip').innerHTML=ic('flip');$('#galBack').innerHTML=ic('back');$('#colBack').innerHTML=ic('back');$('#edBack').innerHTML=ic('back');$('#impIc').innerHTML=ic('plus');$('#colIc').innerHTML=ic('collage');
+$('#bTorch').innerHTML=ic('bolt');$('#bTimer').innerHTML=ic('timer')+'';$('#bFlip').innerHTML=ic('flip');$('#galBack').innerHTML=ic('back');$('#styClose').innerHTML=ic('back');$('#styReset').innerHTML=ic('reset');$('#styGroup').innerHTML=ic('styles');$('#colBack').innerHTML=ic('back');$('#edBack').innerHTML=ic('back');$('#impIc').innerHTML=ic('plus');$('#colIc').innerHTML=ic('collage');
 function paintTimer(){const b=$('#bTimer');b.classList.toggle('on',timerSec>0);b.innerHTML=ic('timer')+(timerSec?`<small style="position:absolute;margin:18px 0 0 22px">${timerSec}</small>`:'');b.style.position='relative'}
 function paintDate(){$('#bDate').classList.toggle('on',CS.date)}
 $('#bTimer').onclick=()=>{timerSec=timerSec===0?3:timerSec===3?10:0;paintTimer();saveCS()};
@@ -1836,10 +1874,13 @@ $('#bDate').onclick=()=>{CS.date=!CS.date;paintDate();saveCS()};
 $('#bTorch').onclick=async()=>{if(!stream)return;torchOn=!torchOn;try{await stream.getVideoTracks()[0].applyConstraints({advanced:[{torch:torchOn}]});$('#bTorch').classList.toggle('on',torchOn)}catch{torchOn=false}};
 $('#bFlip').onclick=()=>{if(recording)return;facing=facing==='user'?'environment':'user';lensId=null;startCam()};
 $('#bStyle').onclick=toggleStyle;
+$('#styClose').onclick=closeStyleCam;
+$('#styGroup').onclick=styleGroup;
+$('#styReset').onclick=()=>{setCamStyle(styleDefaults(CS.style.id));camStyleSync()};
 {const stg=$('#cam .stage');let sw=null;
   stg.addEventListener('pointerdown',e=>{if(!styleOpen){sw=null;return}if(e.isPrimary)sw={x:e.clientX,y:e.clientY,t:performance.now(),multi:false};else if(sw)sw.multi=true});
-  stg.addEventListener('pointerup',e=>{const g=sw;if(!g||!e.isPrimary)return;sw=null;if(g.multi||!STY)return;
-    const dx=e.clientX-g.x,dy=e.clientY-g.y;if(Math.abs(dx)>55&&Math.abs(dy)<50)STY.step(dx<0?1:-1)});
+  stg.addEventListener('pointerup',e=>{const g=sw;if(!g||!e.isPrimary)return;sw=null;if(g.multi)return;
+    const dx=e.clientX-g.x,dy=e.clientY-g.y;if(Math.abs(dx)>55&&Math.abs(dy)<50)styleStep(dx<0?1:-1)});
   stg.addEventListener('pointercancel',()=>{sw=null})}
 $('#bPick').onclick=()=>{
   if(mode==='double'){openBlendPicker();return}
